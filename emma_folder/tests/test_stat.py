@@ -1,18 +1,18 @@
 import sys
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
+# sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\Codes\spd_learn")
+sys.path.insert(0, r"D:/BCI/spd_learn")
 import spd_learn 
 import geoopt
 import pickle 
 import numpy as np
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
+# sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
 import matplotlib.pyplot as plt 
 from sklearn.metrics import balanced_accuracy_score
-
+from spd_learn.modules import BiMap, ReEig, LogEig
 
 import os
 import random
@@ -20,11 +20,14 @@ import copy
 import tkinter as t
 from tkinter.filedialog import askdirectory, askopenfilename
 
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\Codes\spd_learn\emma_folder\utils")
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\Codes\spd_learn\emma_folder\models_")
+sys.path.insert(0, r"D:/BCI/spd_learn/emma_folder/utils")
+sys.path.insert(0, r"D:/BCI/spd_learn/emma_folder/models_")
 
-from emma_folder.utils.eeg_data.data_scripts.get_eeg_data  import DomainBatchSampler 
-from emma_folder.models_.model_SPD import model_SPDNet
+from emma.preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
+# from emma_folder.models_.model_SPD import model_SPDNet
+
+# Nouveau model Matt 
+from emma_folder.models_.model_Matt import modelMAtt_Custom
 
 
 
@@ -117,7 +120,7 @@ for seed in seeds :
             #-----------------------
             # Model 
             #-----------------------
-            spdnet = modelSPDNet(
+            spdnet = modelMAtt_Custom(
                 activation = layer,
                 n_chans = n_chans,
                 n_outputs = n_outputs,

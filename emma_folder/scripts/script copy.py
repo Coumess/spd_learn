@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
+# sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
 import torch
 import copy
 import geoopt
@@ -8,11 +8,11 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\Codes\spd_learn")
+sys.path.insert(0, r"D:/BCI/spd_learn")
 import spd_learn 
 import pickle 
 import numpy as np
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
+# sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
 import matplotlib.pyplot as plt 
 from sklearn.metrics import confusion_matrix, balanced_accuracy_score
 
@@ -21,12 +21,16 @@ import random
 import tkinter as t
 from tkinter.filedialog import askdirectory, askopenfilename
 
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\Codes\spd_learn\emma_folder\utils")
-sys.path.insert(0, r"C:\Users\andrieue\Desktop\Codes\spd_learn\emma_folder\models_")
+sys.path.insert(0, r"D:/BCI/spd_learn/emma_folder/utils")
+sys.path.insert(0, r"C:D:/BCI/spd_learn/emma_folder/models_")
 
-from emma_folder.utils.eeg_data.data_scripts.get_eeg_data  import DomainBatchSampler 
+from emma.preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
 from emma_folder.models_.model_SPD import modelSPDNet
 from emma_folder.utils.monitoring import get_phi_values, get_a_values, get_b_values, get_A_values, get_mu_values, get_sigma_values, EigenvalueMonitor, get_alpha_values, get_w_values, get_alphaE_values
+
+
+# Nouveau model Matt 
+from emma_folder.models_.model_Matt import modelMAtt_Custom
 
 
 #-----------------------------------------------
@@ -105,8 +109,8 @@ for i,file in enumerate(list_files) :                                           
     print("Model Architectures ")
     print("=" * 60)
 
-    spdnet = modelSPDNet(
-        activation ="polyact",                                                      # !! ACTIVATION !!
+    spdnet = modelMAtt_Custom(
+        activation ="expT",                                                      # !! ACTIVATION !!
         n_chans = n_chans,
         n_outputs = n_outputs,
         threshold = 1e-4,                                      

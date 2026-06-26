@@ -24,7 +24,7 @@ from tkinter.filedialog import askdirectory, askopenfilename
 sys.path.insert(0, r"C:\Users\andrieue\Desktop\Codes\spd_learn\emma_folder\utils")
 sys.path.insert(0, r"C:\Users\andrieue\Desktop\Codes\spd_learn\emma_folder\models_")
 
-from emma_folder.utils.eeg_data.data_scripts.get_eeg_data  import DomainBatchSampler 
+from emma.preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
 from emma_folder.models_.model_SPD import modelSPDNet
 from emma_folder.utils.monitoring import get_phi_values, get_a_values, get_b_values, get_A_values, get_mu_values, get_sigma_values, EigenvalueMonitor, get_alpha_values, get_w_values, get_alphaE_values
 
