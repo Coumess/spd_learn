@@ -112,7 +112,7 @@ for seed in seeds :
 
         res_couche = []
 
-        for layer in ["reeig", "cosh", "coshP", "expT", "expP", "tanheig"]:
+        for layer in ["reeig", "coshP", "expT"]: # remove cosh, expP, tanheig
             set_seed(seed)
             n_chans = X_train.shape[1]
             n_outputs = len(torch.unique(Y_train))

@@ -52,11 +52,14 @@ class modelMAtt_Custom(nn.Module):
 
     def _make_activation(self, n):
         # ... Exactement le même code que dans votre fichier model_SPD.py ...
-        if self.activation_type == "reeig": return ReEig(self.threshold)
-        elif self.activation_type == "coshP": return coshP()
-        elif self.activation_type == "expT": return expT()
-        # Ajoutez vos autres activations ici...
-        else: raise ValueError("Unknown activation")
+        if self.activation_type == "reeig": 
+            return ReEig(self.threshold)
+        elif self.activation_type == "coshP": 
+            return coshP()
+        elif self.activation_type == "expT": 
+            return expT()
+        else: 
+            raise ValueError("Unknown activation")
 
 
     def forward(self, X: torch.Tensor, domain) -> torch.Tensor:
