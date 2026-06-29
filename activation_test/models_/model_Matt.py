@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
 
-# L'importation clé : on récupère le bloc d'attention et LogEig
 from spd_learn.models.matt import AttentionManifold 
 from spd_learn.modules import LogEig
 
 # Vos importations d'activations
-from emma_folder.activation.spectral import PowerEig, SpAEig, TanhEig
-from emma_folder.activation.elementwise import activationSPD, coshP, polynomialActivation, sinhP, expT, expP
+from activation_test.activation.spectral import PowerEig, SpAEig, TanhEig
+from activation_test.activation.elementwise import activationSPD, coshP, polynomialActivation, sinhP, expT, expP
 from spd_learn.modules import BiMap, ReEig, LogEig
 
 

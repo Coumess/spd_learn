@@ -10,10 +10,10 @@ This fork is no longer active and will not be updated anymore.
 Please fork and use the official repository at the following address:  
 [https://github.com/spdlearn/spd_learn](https://github.com/spdlearn/spd_learn)
 
-The files required for this project are available in this repository **emma_folder** directories.
+The files required for this project are available in this repository **activation_test** directories.
 
 ```text
-emma_folder
+activation_test
 ├── activation/
 │   ├── spectral.py
 │   ├── utils_spectral.py
@@ -75,7 +75,7 @@ Implementation of the SPD neural network model.
 
 ### `model_Matt.py`
 
-Implemention of the 
+Implemention of the Manifold Attention Network model.
 
 ---
 
@@ -122,24 +122,15 @@ Functions allowing the monitoring of the activation parameters during training.
 
 ---
 
-# Quick start for using :
+# Getting started :
 
 The custom activation functions are designed to be used as standard PyTorch modules, replacing the traditional `ReEig` layer in SPD neural networks.
 You can use `script.copy` or `test_stat.py`. Choose a model and change it 
 
-### Example Usage
+### Example Usage 
 
-```python
-import torch
-from emma_folder.activation.spectral import SpAEig
-from emma_folder.activation.elementwise import expT
+1. Select a database (You have to preprocess the data first (see readme.md of preprocessing folder))
+2. Select a model (e.g. : SPDnet, MAtt, EEGSPDnet, ...)
+3. Set the activation functions (e.g : coshp, expT, ReEig, ...)
 
-# 1. Initialize a Spectral Activation (e.g., Spectral Attention)
-spectral_act = SpAEig()
-
-# 2. Initialize an Element-wise Activation (e.g., Truncated Exponential)
-elementwise_act = expT()
-
-# Use them in your custom SPD block:
-out = spectral_act(input_cov_matrix)
-```
+For `test_stat.py` change the name of the output .csv and .txt

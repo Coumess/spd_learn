@@ -21,16 +21,16 @@ import random
 import tkinter as t
 from tkinter.filedialog import askdirectory, askopenfilename
 
-sys.path.insert(0, r"D:/BCI/spd_learn/emma_folder/utils")
-sys.path.insert(0, r"C:D:/BCI/spd_learn/emma_folder/models_")
+sys.path.insert(0, r"D:/BCI/spd_learn/activation_test/utils")
+sys.path.insert(0, r"C:D:/BCI/spd_learn/activation_test/models_")
 
-from emma.preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
-from emma_folder.models_.model_SPD import modelSPDNet
-from emma_folder.utils.monitoring import get_phi_values, get_a_values, get_b_values, get_A_values, get_mu_values, get_sigma_values, EigenvalueMonitor, get_alpha_values, get_w_values, get_alphaE_values
+from preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
+from activation_test.models_.model_SPD import modelSPDNet
+from activation_test.utils.monitoring import get_phi_values, get_a_values, get_b_values, get_A_values, get_mu_values, get_sigma_values, EigenvalueMonitor, get_alpha_values, get_w_values, get_alphaE_values
 
 
 # Nouveau model Matt 
-from emma_folder.models_.model_Matt import modelMAtt_Custom
+from activation_test.models_.model_Matt import modelMAtt_Custom
 
 
 #-----------------------------------------------
