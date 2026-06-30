@@ -60,18 +60,17 @@ println("\n=== RESULTATS POST-HOC ===")
 println(pht.p)
 println(pht.obsstat)
 println("moyenne de ReEig : ", mean(y[:,1]), " +/- ", std(y[:,1]))
-println("moyenne de Cosh : ", mean(y[:,2]), " +/- ", std(y[:,2]))
-println("moyenne de CoshP : ", mean(y[:,3]), " +/- ", std(y[:,3]))
-println("moyenne de ExpAct : ", mean(y[:,4]), " +/- ", std(y[:,4]))
+println("moyenne de CoshP : ", mean(y[:,2]), " +/- ", std(y[:,2]))
+println("moyenne de ExpT : ", mean(y[:,3]), " +/- ", std(y[:,3]))
 
 #%% Bar plot moyennes et écarts types
 
 gr()
 
-moyennes = [mean(y[:,1]), mean(y[:,2]), mean(y[:,3]), mean(y[:,4])]
-ecarts   = [std(y[:,1]), std(y[:,2]), std(y[:,3]), std(y[:,4])]
+moyennes = [mean(y[:,1]), mean(y[:,2]), mean(y[:,3])]
+ecarts   = [std(y[:,1]), std(y[:,2]), std(y[:,3])]
 
-labels = ["ReEig", "Cosh", "CoshP", "ExpT"]
+labels = ["ReEig", "CoshP", "ExpT"]
 x = 1:length(labels)
 
 p = bar(
