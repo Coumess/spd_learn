@@ -5,8 +5,8 @@ from warnings import warn
 from spd_learn.functional import covariance
 from spd_learn.modules import BiMap, CovLayer, LogEig, SPDBatchNormMeanVar, ReEig
 
-from emma_folder.activation.spectral import PowerEig, SpAEig, TanhEig
-from emma_folder.activation.elementwise import activationSPD, coshP, polynomialActivation, sinhP, expT, expP
+from activation_test.activation.spectral import PowerEig, SpAEig, TanhEig
+from activation_test.activation.elementwise import activationSPD, coshP, polynomialActivation, sinhP, expT, expP
 
 class modelSPDNet(nn.Module): 
 

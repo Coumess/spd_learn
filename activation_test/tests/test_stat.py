@@ -27,7 +27,7 @@ from preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler
 # from emma_folder.models_.model_SPD import model_SPDNet
 
 # Nouveau model Matt 
-from activation_test.models_.model_Matt import modelMAtt_Custom
+# from activation_test.models_.model_Matt import modelMAtt_Custom
 
 
 
