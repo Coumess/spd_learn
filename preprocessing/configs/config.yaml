@@ -61,8 +61,8 @@ data:
   # that was used when preprocessing was originally run (it is baked into the
   # fold hash). Use a literal path or an env var that expands to that same string.
   eeg:
-    data_dir: "C:/Users/andrieue/Desktop/Codes/spd_learn/emma_folder/utils/eeg_data/data"
-    processed_root: "C:/Users/andrieue/Desktop/Codes/spd_learn/emma_folder/utils/eeg_data/processed_data/DB_final"
+    data_dir: "D:/BCI/FII_BCI_Corpus/MatCov"
+    processed_root: "D:/BCI/processed_data"
     db_prefix: "Schirrmeister2017" #"BNCI2014001"  | "Weibo2014" | "BNCI2015001" | "Zhou2016" | "Schirrmeister2017" | "BNCI2014002" "Cho2017"=> Change model dims accordingly
     file_id: null           # null = load all sessions; set to e.g. 1 for a single file
     k_folds: 5

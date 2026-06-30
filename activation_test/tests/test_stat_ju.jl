@@ -9,7 +9,7 @@ using Statistics
 
 #%%
 # Charger le fichier des résultats
-y = readdlm("results_05_06_BNCI2015.csv", ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
+y = readdlm("results_MAtt/results_30_06_Cho2017_MAtt.csv", ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
 
 # Vérificatione la taille de y (doit être 25xnbr de couches)
 println("Taille de y : ", size(y))
@@ -29,7 +29,9 @@ println(y_vec[1:4])
 #---------------------------------------
 # TEST OMNIBUS
 #---------------------------------------
-res = anovaTestRM(y_vec, (n=25, k=4))
+N_rows = size(y, 1)
+K_cols = size(y,2)
+res = anovaTestRM(y_vec, (n=N_rows, k=K_cols))
 println("\n=== RESULTAT ANOVA ===")
 println(res)
 
@@ -47,12 +49,9 @@ NK = N * K
 
 println(NK)
 
-d12 = y_vec[1:K:NK] .- y_vec[2:K:NK]                        # ReEig - Cosh [start, step, end]
+d12 = y_vec[1:K:NK] .- y_vec[2:K:NK]                        # ReEig - Cosh
 d13 = y_vec[1:K:NK] .- y_vec[3:K:NK]                        # ReEig - CoshP
-d14 = y_vec[1:K:NK] .- y_vec[4:K:NK]                        # ReEig - ExpAct
 d23 = y_vec[2:K:NK] .- y_vec[3:K:NK]                        # Cosh - CoshP
-d24 = y_vec[2:K:NK] .- y_vec[4:K:NK]                        # Cosh - ExpAct
-d34 = y_vec[3:K:NK] .- y_vec[4:K:NK]                        # CoshP - ExpAct
 
 # Test
 pht = studentMcTestRM([d12, d13, d14, d23, d24, d34])

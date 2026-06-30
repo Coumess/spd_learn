@@ -20,14 +20,14 @@ import copy
 import tkinter as t
 from tkinter.filedialog import askdirectory, askopenfilename
 
-sys.path.insert(0, r"D:/BCI/spd_learn/emma_folder/utils")
-sys.path.insert(0, r"D:/BCI/spd_learn/emma_folder/models_")
+sys.path.insert(0, r"D:/BCI/spd_learn/activation_test/utils")
+sys.path.insert(0, r"D:/BCI/spd_learn/activation_test/models_")
 
-from emma.preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
+from preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
 # from emma_folder.models_.model_SPD import model_SPDNet
 
 # Nouveau model Matt 
-from emma_folder.models_.model_Matt import modelMAtt_Custom
+from activation_test.models_.model_Matt import modelMAtt_Custom
 
 
 
@@ -112,7 +112,7 @@ for seed in seeds :
 
         res_couche = []
 
-        for layer in ["reeig", "coshP", "expT"]: # remove cosh, expP, tanheig
+        for layer in ["reeig", "coshP", "expT"]:                                              # Remove cosh, expP, tanheig
             set_seed(seed)
             n_chans = X_train.shape[1]
             n_outputs = len(torch.unique(Y_train))
@@ -261,8 +261,8 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV 
-np.savetxt("results_15_06_Cho2017'.csv", y, delimiter=",", header="reeig, cosh, coshP, expT, expP, tanheig ", comments="")
+np.savetxt(r"results_MAtt/results_30_06_Schirrmeister2017_MAtt.csv", y, delimiter=",", header="reeig, coshP, expT", comments="")
 
 # Sauvegarder en txt 
-np.savetxt("results_15_06_Cho2017.txt", y)
+np.savetxt(r"results_MAtt/results_30_06_Schirrmeister2017_MAtt.txt", y)
 

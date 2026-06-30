@@ -1,7 +1,7 @@
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as f 
-from emma_folder.activation.utils_elementwise import cosh_parametric, sinh_parametric, truncated_exponential, exp_parametric, polynomialFunction
+from activation_test.activation.utils_elementwise import cosh_parametric, sinh_parametric, truncated_exponential, exp_parametric, polynomialFunction
 
 
 """

@@ -5,7 +5,7 @@ import torch.nn.functional as f
 from spd_learn.functional.numerical import get_epsilon
 #from spd.learn.functional.core import clamp_eigvals
 from spd_learn.functional.autograd import clamp_eigvals_func, modeig_forward
-from emma_folder.activation.utils_spectral import power, tanh, SpectralAttention
+from activation_test.activation.utils_spectral import power, tanh, SpectralAttention
 
 
 
