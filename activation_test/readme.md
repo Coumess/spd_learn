@@ -3,11 +3,8 @@
 This repository contains the implementation of an SPD neural network model with custom spectral and element-wise activation functions.
 
 ---
-## ⚠️ Unmaintained Repository
 
-This fork is no longer active and will not be updated anymore.
-
-Please fork and use the official repository at the following address:  
+Please fork and use the official repository at the following address :  
 [https://github.com/spdlearn/spd_learn](https://github.com/spdlearn/spd_learn)
 
 The files required for this project are available in this repository **activation_test** directories.
@@ -124,12 +121,12 @@ Functions allowing the monitoring of the activation parameters during training.
 
 # Getting started :
 
-The custom activation functions are designed to be used as standard PyTorch modules, replacing the traditional `ReEig` layer in SPD neural networks.
+The custom activation functions is `ReEig` layer in SPD neural networks.
 You can use `script.copy` or `test_stat.py`. Choose a model and change it 
 
 ### Example Usage 
 
-1. Select a database (You have to preprocess the data first (see readme.md of preprocessing folder))
+1. Select a database (You have to preprocess the data first (see [reed me of preprocessing folder](https://github.com/Coumess/spd_learn/tree/statistiques_tests/preprocessing#readme)))
 2. Select a model (e.g. : SPDnet, MAtt, EEGSPDnet, ...)
 3. Set the activation functions (e.g : coshp, expT, ReEig, ...)
 

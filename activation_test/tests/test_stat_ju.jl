@@ -54,7 +54,7 @@ d13 = y_vec[1:K:NK] .- y_vec[3:K:NK]                        # ReEig - CoshP
 d23 = y_vec[2:K:NK] .- y_vec[3:K:NK]                        # Cosh - CoshP
 
 # Test
-pht = studentMcTestRM([d12, d13, d14, d23, d24, d34])
+pht = studentMcTestRM([d12, d13, d23])
 
 println("\n=== RESULTATS POST-HOC ===")
 println(pht.p)

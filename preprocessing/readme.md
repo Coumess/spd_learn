@@ -1,7 +1,22 @@
 # DATA PREPROCESSING
 
 ## Folder Setup
-![Schéma du pipeline](config.png)
+Folder
+├── configs/
+│   ├── config.yaml
+├── data_scripts/
+│   └── get_eeg_data.py
+│   └── preprocess_data.py
+├── utils/
+│   └── data_helpers.py
+│   └── precond.jl
+├── tests/
+│   ├── test_stat.py
+│   ├── test_stat_ju.jl
+│   ├── test_expP.py
+│   ├── test_coshP.py
+│   └── test_expT.py
+└── extractCovMat.jl
 
 ## Useful Julia Commands
 
