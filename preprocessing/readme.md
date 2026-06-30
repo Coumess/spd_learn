@@ -1,6 +1,7 @@
 # DATA PREPROCESSING
 
 ## Folder Setup
+```text
 Folder
 ├── configs/
 │   ├── config.yaml
@@ -16,7 +17,8 @@ Folder
 │   ├── test_expP.py
 │   ├── test_coshP.py
 │   └── test_expT.py
-└── extractCovMat.jl
+└── extractCovMat.jl*
+```
 
 ## Useful Julia Commands
 
@@ -40,6 +42,9 @@ using Eegle
 downloadDB()
 ```
 
+### Some informations about the database :
+![Details of the dataset of motor imageri](preprocessing\FII_BCI_MI_database_info.png)
+
 ---
 
 ## Extract Covariance Matrices from the Desired Databases
@@ -59,7 +64,7 @@ downloadDB()
 
 The following files are generated :
 
-- `covmat.npy` : covariance matrices..
+- `covmat.npy` : covariance matrices.
 - `labels.npy` : associated labels.
 
 ---
@@ -89,6 +94,6 @@ Run the script
 python -m data_scripts.preprocess_data --config configs/config.yaml
 ```
 
-## Résultat
+## Results
 
 The different folds of the preprocessed data are generated and saved in the folder defined by processed_root.
