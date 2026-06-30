@@ -43,7 +43,7 @@ downloadDB()
 ```
 
 ### Some informations about the database :
-![Details of the dataset of motor imageri](preprocessing\FII_BCI_MI_database_info.png)
+![Details of the dataset of motor imagery](preprocessing/FII_BCI_MI_database_info.png)
 
 ---
 
