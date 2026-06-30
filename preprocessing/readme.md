@@ -17,7 +17,7 @@ Folder
 │   ├── test_expP.py
 │   ├── test_coshP.py
 │   └── test_expT.py
-└── extractCovMat.jl*
+└── extractCovMat.jl
 ```
 
 ## Useful Julia Commands
@@ -27,8 +27,8 @@ Folder
 | Open a Julia terminal | `Alt + J + O` |
 | Install a Julia package | `Alt + ]` and write `add PackageName` |
 | Check current directory | `pwd()` |
-| Change directory | `cd("chemin")` |
-| Run a Julia script | `include("nom.jl")` |
+| Change directory | `cd("path/to/dir")` |
+| Run a Julia script | `include("script_name.jl")` |
 
 ---
 
@@ -42,12 +42,14 @@ using Eegle
 downloadDB()
 ```
 
-### Some informations about the database :
+### Some information about the database :
 ![Details of the dataset of motor imagery](FII_BCI_MI_database_info.png)
 
 ---
 
-## Extract Covariance Matrices from the Desired Databases
+## Extract Covariance Matrices from the Databases
+
+⚠️ **Not all models need to extract the Covariances Matrices**
 
 1. Open the Julia script `extractCovMat.jl`.
 2. Modify the paths :
@@ -79,13 +81,13 @@ The following files are generated :
 | `data_dir` | Path to the folder containing the covariance matrices and labels |
 | `processed_root` | Path to the folder where the preprocessed databases will be saved |
 | `db_prefix` | Prefix of the database to preprocess |
-| `precond_explVar` | PDimensionality reduction parameter : <br>- `0` : automatic reduction for databases with more than 64 electrodes <br>- `1` : no dimensionality reduction <br>- a value between `0` and `1` : variance ratio to keep |
+| `precond_explVar` | Dimensionality reduction parameter : <br>- `0` : automatic reduction for databases with more than 64 electrodes <br>- `1` : no dimensionality reduction <br>- a value between `0` and `1` : variance ratio to keep |
 
 3. Run the preprocessing script: :
 
 ⚠️ Make sure you are in the correct directory, if not : 
 ```bash
-cd("D:/BCI/SPD_LEARN/preprocessing")
+cd("SPD_LEARN/preprocessing")
 ```
 
 Run the script
