@@ -1,20 +1,3 @@
-"""
-Preprocessing pipeline for raw EEG data into k-fold epoch files.
-
-Loads continuous .npz EEG files, epochs them using the metadata in .yml files,
-applies optional bandpass filtering, splits per domain into k-folds, and saves
-fold_k.pkl files.
-
-Usage:
-    python -m data_scripts.preprocess_raw_eeg --config configs/config_raw.yaml
-
-Each fold_k.pkl contains:
-    {
-        "train": (X, y, d),   # X: (n_trials, n_chans, n_times)
-        "val":   (X, y, d),
-        "test":  (X, y, d),
-    }
-"""
 # ========================
 # IMPORTS
 # ========================
@@ -54,17 +37,18 @@ def _load_yml(yml_path: str) -> dict:
 def _find_files(data_dir: str, db_prefix: str):
     """Return sorted list of (npz_path, yml_path) for a dataset."""
     pairs = []
-    for fname in sorted(os.listdir(data_dir)):
+    path = os.path.join(data_dir, db_prefix)
+    for fname in sorted(os.listdir(path)):
         if not fname.endswith(".npz"):
             continue
         base = fname[:-4]
-        yml_path = os.path.join(data_dir, base + ".yml")
+        yml_path = os.path.join(path, base + ".yml")
         if not os.path.exists(yml_path):
             continue
-        pairs.append((os.path.join(data_dir, fname), yml_path))
+        pairs.append((os.path.join(path, fname), yml_path))
     if not pairs:
         raise FileNotFoundError(
-            f"No .npz/.yml pairs found in {data_dir}"
+            f"No .npz/.yml pairs found in {path}"
         )
     return pairs
 
@@ -73,7 +57,7 @@ def _find_files(data_dir: str, db_prefix: str):
 # Filtering
 # ========================
 
-def _bandpass(signal: np.ndarray, sfreq: float, l_freq: float, h_freq: float) -> np.ndarray:
+def _bandpass(signal, sfreq, l_freq, h_freq):
     """Bandpass filter signal (n_samples, n_chans) using a 4th-order Butterworth."""
     sos = butter(4, [l_freq, h_freq], btype="bandpass", fs=sfreq, output="sos")
     return sosfiltfilt(sos, signal, axis=0).astype(np.float32)
@@ -84,23 +68,14 @@ def _bandpass(signal: np.ndarray, sfreq: float, l_freq: float, h_freq: float) ->
 # ========================
 
 def _epoch_file(
-    npz_path: str,
-    yml_path: str,
-    l_freq: float | None,
-    h_freq: float | None,
-    target_labels: list[int] | None,
-) -> tuple[np.ndarray, np.ndarray]:
+    npz_path,
+    yml_path,
+    l_freq,
+    h_freq,
+    target_labels,
+):
     """
     Load one .npz file and return epochs (n_trials, n_chans, n_times) and labels.
-
-    Epoching uses offset and windowlength from the .yml metadata:
-        epoch = signal[onset + offset : onset + offset + windowlength]
-
-    Parameters
-    ----------
-    target_labels : list[int] or None
-        Keep only epochs whose stimulus label is in this list.
-        None = keep all non-zero labels.
 
     Returns
     -------
@@ -118,7 +93,7 @@ def _epoch_file(
     win = meta["stim"]["windowlength"]          # samples
     label_map = meta["stim"]["labels"]          # e.g. {"left_hand": 1, "right_hand": 2}
 
-    # Optional bandpass filter on continuous signal (cheaper than per-epoch)
+    # BandPass filter the signal if requested
     if l_freq is not None and h_freq is not None:
         signal = _bandpass(signal, sfreq, l_freq, h_freq)
 
@@ -126,7 +101,7 @@ def _epoch_file(
     is_event = stim != 0
     onsets = np.where(np.diff(is_event.astype(int)) == 1)[0] + 1
 
-    # Build reverse map: integer stim value → 0-indexed class index
+    # Choose the labels to keep if None it keeps everything
     if target_labels is not None:
         keep = set(target_labels)
     else:

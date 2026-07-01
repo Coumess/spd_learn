@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-sys.path.insert(0, r"D:/BCI/spd_learn")
+sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn")
 import spd_learn 
 import geoopt
 import pickle 
@@ -20,11 +20,11 @@ import copy
 import tkinter as t
 from tkinter.filedialog import askdirectory, askopenfilename
 
-sys.path.insert(0, r"D:/BCI/spd_learn/activation_test/utils")
-sys.path.insert(0, r"D:/BCI/spd_learn/activation_test/models_")
+sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test/utils")
+sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test/models_")
 
 from preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
-# from emma_folder.models_.model_SPD import model_SPDNet
+from activation_test.models_.model_SPD import modelSPDNet
 
 # Nouveau model Matt 
 # from activation_test.models_.model_Matt import modelMAtt_Custom
@@ -120,7 +120,7 @@ for seed in seeds :
             #-----------------------
             # Model 
             #-----------------------
-            spdnet = modelMAtt_Custom(
+            spdnet = modelSPDNet(
                 activation = layer,
                 n_chans = n_chans,
                 n_outputs = n_outputs,
@@ -261,8 +261,8 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV 
-np.savetxt(r"results_MAtt/results_30_06_Schirrmeister2017_MAtt.csv", y, delimiter=",", header="reeig, coshP, expT", comments="")
+np.savetxt(r"results_01_07_BNCI2014001_TSMNet.csv", y, delimiter=",", header="reeig, coshP, expT", comments="")
 
 # Sauvegarder en txt 
-np.savetxt(r"results_MAtt/results_30_06_Schirrmeister2017_MAtt.txt", y)
+np.savetxt(r"results_01_07_BNCI2014001_TSMNet.txt", y)
 

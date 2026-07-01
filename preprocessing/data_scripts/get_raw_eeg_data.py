@@ -1,13 +1,3 @@
-"""
-DataLoader utilities for raw EEG epoch files (output of preprocess_raw_eeg.py).
-
-Each fold_k.pkl contains:
-    {"train": (X, y, d), "val": (X, y, d), "test": (X, y, d)}
-    X: (n_trials, n_chans, n_times)  float32
-    y: (n_trials,)                   int64   0-indexed class labels
-    d: (n_trials,)                   int64   domain id (subject × session)
-"""
-
 import os
 import pickle
 import sys

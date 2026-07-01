@@ -22,8 +22,8 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import balanced_accuracy_score
 from torch.utils.data import DataLoader, TensorDataset
 
-sys.path.insert(0, r"D:/BCI/spd_learn")
-sys.path.insert(0, r"D:/BCI/spd_learn/activation_test")
+sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn")
+sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test")
 
 from preprocessing.data_scripts.get_eeg_data import DomainBatchSampler
 from activation_test.models_.model_TSM import TSMNetCustom
@@ -32,8 +32,8 @@ from activation_test.models_.model_TSM import TSMNetCustom
 # ─────────────────────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────────────────────
-DATA_DIR = r"D:/BCI/processed_data_raw"   # folder produced by preprocess_raw_eeg.py
-RESULTS_DIR = r"D:/BCI/spd_learn/activation_test/results_TSMNet"
+DATA_DIR = r"C:/Users/coumesa/Documents/BCI/data/processed_data_raw"   # folder produced by preprocess_raw_eeg.py
+RESULTS_DIR = r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test/results_TSMNet"
 RESULTS_FILE = "results_TSMNet_BNCI2014001_LR.csv"
 
 ACTIVATIONS = ["reeig", "coshP", "expT"]

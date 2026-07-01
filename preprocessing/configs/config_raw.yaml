@@ -11,9 +11,9 @@ experiment:
 data:
   raw_eeg:
     # Dataset folder (downloaded using Eegle, see README.md)
-    data_dir: "D:/BCI/FII_BCI_Corpus/MI/BNCI2014001"
+    data_dir: "C:/Users/coumesa/Documents/BCI/data/FII_BCI_Corpus/MI"
     db_prefix: "BNCI2014001" #"BNCI2014001"  | "Weibo2014" | "BNCI2015001" | "Zhou2016" | "Schirrmeister2017" | "BNCI2014002" "Cho2017"=> Change model dims accordingly
-    processed_root: "D:/BCI/processed_data_raw"
+    processed_root: "C:/Users/coumesa/Documents/BCI/data/processed_data_raw"
 
     k_folds: 5
     train_pct: 0.7
@@ -21,8 +21,8 @@ data:
 
     # Bandpass filter applied to continuous signal before epoching (Butter if u use preprocess_raw_eeg.py)
     # Set to null to disable filtering
-    l_freq: 4.0
-    h_freq: 40.0
+    l_freq: 8.0
+    h_freq: 32.0
 
     # Keep only these stimulus values (integers from the .yml stim.labels).
     # null = keep all non-zero labels (all classes).

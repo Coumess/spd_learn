@@ -27,7 +27,7 @@ using Eegle
 
 # PUT HERE path to the MI folder of the FII corpus on your PC
 # MIDir = joinpath(@__DIR__, "MI") 
-MIDir = "C:/Users/andrieue/Desktop/Données/FII_BCI_Corpus/MI"
+MIDir = "C:/Users/coumesa/Documents/BCI/data/FII_BCI_Corpus/MI"
 classes = ["left_hand", "right_hand"]; # or for example ["left_hand", "right_hand"]; ["feet",]   # Chosen classes
 
 # select MI databases comprising the given 'classes' and minimum number of trials
@@ -35,7 +35,7 @@ inclusion = (("tpc", x -> minimum(values(x)) > 24),)
 
 DBs = selectDB(MIDir, :MI; classes, inclusion);
 
-outDir = "C:/Users/andrieue/Desktop/Données/FII_BCI_Corpus/MatCov"              # output to save the covariance matrices
+outDir = "C:/Users/coumesa/Documents/BCI/data/FII_BCI_Corpus/MatCov"              # output to save the covariance matrices
 
 # Create and save all data
 for DB ∈ DBs

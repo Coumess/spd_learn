@@ -9,7 +9,7 @@ using Statistics
 
 #%%
 # Charger le fichier des résultats
-y = readdlm("results_MAtt/results_30_06_Cho2017_MAtt.csv", ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
+y = readdlm("results_01_07_BNCI2014001_TSMNet.csv", ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
 
 # Vérificatione la taille de y (doit être 25xnbr de couches)
 println("Taille de y : ", size(y))
