@@ -20,20 +20,21 @@ for DB ∈ DBs
     
     @info "\n Writin data for databse $(DB.dbName)"
 
-    # Compute the rate for the resampling if needed
+    #=  Compute the rate for the resampling if needed
     fs = DB.sr
 
     if fs == 250 || fs == 256
         rate_rs = 1.0
     else
         rate_rs = 250/fs
-    end
+    end 
+    =# 
 
     for (d, file) in enumerate(DB.files)
         
         println("writing file $d of $(length(DB.files))")
 
-        o = readNY(file; bandPass = (4, 36), bpDesign = Butterworth(4), rate=rate_rs, upperLimit = 1.2, classes) # Change the rate depends on the database
+        o = readNY(file; bandPass = (4, 36), bpDesign = Butterworth(4), upperLimit = 1.2, classes) # Change the rate depends on the database
         
         k = length(o.trials) # number of trials
         n = o.ne # number of channels  

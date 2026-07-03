@@ -21,9 +21,9 @@ def load_raw_tensors(data_dir, db_prefix, file_id=None, verbose=True):
     """Load and concatenate all consistent (tensors(signal eeg), label) arrays"""
     if verbose:
         if file_id:
-            msg = f"Loading covmats from {db_prefix} database and file ID {file_id}..."
+            msg = f"Loading tensors from {db_prefix} database and file ID {file_id}..."
         else:
-            msg = f"Loading covmats from {db_prefix} database (all file IDs)..."
+            msg = f"Loading tensors from {db_prefix} database (all file IDs)..."
         print(msg)
 
     tensors_all, labels_all, dom_all, shapes = [], [], [], []
