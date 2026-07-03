@@ -24,8 +24,6 @@ class TSMNetCustom(nn.Module):
         One of "reeig", "coshP", "expT".
     n_chans : int
         Number of EEG channels (input).
-    n_outputs : int
-        Number of classes.
     n_temp_filters : int
         Temporal conv filters.
     temp_kernel_length : int
@@ -35,19 +33,21 @@ class TSMNetCustom(nn.Module):
     n_bimap_filters : int
         BiMap output dimension.
     threshold : float
-        Threshold for ReEig (ignored for other activations).
+        Threshold.
+    n_outputs : int
+        Number of ???.
     """
 
     def __init__(
         self,
         activation="reeig",
         n_chans=None,
-        n_outputs=None,
         n_temp_filters=4,
         temp_kernel_length=25,
         n_spatiotemp_filters=40,
         n_bimap_filters=20,
         threshold=1e-4,
+        n_outputs=None,
     ):
         super().__init__()
 
@@ -56,9 +56,16 @@ class TSMNetCustom(nn.Module):
         if n_outputs is None:
             raise ValueError("n_outputs must be provided")
 
+        self.n_chans = n_chans
+        self.n_outputs = n_outputs
+        self.n_temp_filters = n_temp_filters
+        self.n_temp_kernel = temp_kernel_length
+        self.n_spatiotemp_filters = n_spatiotemp_filters
+        self.n_bimap_filters = n_bimap_filters
         self.activation_type = activation
         self.threshold = threshold
-        n_tangent_dim = n_bimap_filters * (n_bimap_filters + 1) // 2
+
+        n_tangent_dim = int(n_bimap_filters * (n_bimap_filters + 1) / 2)
 
         self.cnn = nn.Sequential(
             nn.Conv2d(
@@ -98,31 +105,23 @@ class TSMNetCustom(nn.Module):
 
         Parameters
         ----------
-        x : (batch, n_chans, n_times)  raw EEG epochs
-        domain : ignored, kept for compatibility with test_stat.py
+        x : (batch_size, n_chans, n_times)  raw EEG epochs
+            ??? pas sur de ce que je fais domain : ignored, kept for compatibility with test_stat.py
 
-        Note on SPDBatchNorm
-        --------------------
-        SPDBatchNormMeanVar computes the Riemannian Frechet mean via iterative
-        eigh calls. It is designed for ReEig outputs (bounded condition number).
-        Element-wise activations (coshP, expT) apply cosh/Taylor element-wise
-        to matrix entries: the result is symmetric but NOT SPD in general, and
-        has condition numbers >> 1e6 that make frechet_mean diverge.
-        For these activations we skip SPDBatchNorm, matching how modelSPDNet
-        uses coshP/expT (BiMap -> activation -> LogEig, no batch norm).
+        Returns
+        ----------
+        torch.Tensor
+            Output tensor of shape (batch_size, n_outputs)
         """
-        x = self.cnn(x[:, None, ...])
-        x = self.covpool(x)
-        x = self.bimap(x)
-        if self.activation_type in ("coshP", "expT"):
-            # Trace-normalize before element-wise activation: bring diagonal
-            # entries to scale ~1 so cosh/exp don't overflow (BiMap entries
-            # can reach ~50, giving cosh(25) ~ 1e10 which breaks eigh in LogEig).
-            n = x.shape[-1]
-            trace = x.diagonal(dim1=-2, dim2=-1).sum(dim=-1, keepdim=True).unsqueeze(-1)
-            x = x * n / trace.clamp(min=1e-8)
-        x = self.activation(x)
-        if self.activation_type == "reeig":
-            x = self.spdbnorm(x)
-        x = self.logeig(x)
-        return self.head(x)
+        x_filtered = self.cnn(x[:, None, ...])
+        x_cov = self.covpool(x_filtered)
+        # === Change from spdnet to BiMap + Activation Functions ===
+        x_bimap = self.bimap(x_cov)
+        x_activated = self.activation(x_bimap)
+        # ==========================================================
+        # Juste avant self.spdbnorm(x_activated)
+        eigs = torch.linalg.eigvalsh(x_activated)
+        if torch.any(eigs <= 0):
+            print(f"ALERTE : Matrice non-SPD détectée ! Min Eig: {eigs.min().item()}")
+        x_tangent = self.logeig(self.spdbnorm(x_activated))
+        return self.head(x_tangent)

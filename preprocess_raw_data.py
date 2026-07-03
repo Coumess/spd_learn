@@ -167,7 +167,7 @@ def preprocess_raw_eeg_data(
 
         pkl_path = os.path.join(out_dir, f"fold_{fold_id}.pkl")
         with open(pkl_path, "wb") as f:
-            pickle.dump(fold_data, f)
+            pickle.dump(fold_data, f) # freeze
         print(f"Fold {fold_id} sauvegardé dans : {pkl_path}")
 
     # ------------------ write metadata ------------------------
