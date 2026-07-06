@@ -54,7 +54,7 @@ for seed in seeds :
 
     for i, file in enumerate(list_files) :
         path_data = os.path.join(path, file)
-        print(f"Fichier ; {file}")
+        print(f"Fichier : {file}")
 
         # ---------
         # Load data

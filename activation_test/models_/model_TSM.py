@@ -115,8 +115,7 @@ class TSMNetCustom(nn.Module):
         """
         x_filtered = self.cnn(x[:, None, ...])
         x_cov = self.covpool(x_filtered) # Becoming SPD
-        eigs = torch.linalg.eigvalsh(x_cov)
-        print(f"Eigen values (covpool) min : {eigs.min().item()} and max : {eigs.max().item()}")
+        x_cov_size = x_cov.size() # Thikonov regularization + Normalization
         # === Change from spdnet to BiMap + Activation Functions ===
         x_bimap = self.bimap(x_cov)
         eigs = torch.linalg.eigvalsh(x_bimap)

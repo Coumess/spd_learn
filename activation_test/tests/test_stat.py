@@ -72,11 +72,12 @@ for seed in seeds :
         # Load data
         #-----------------------
         with open(path_data, 'rb') as f : 
-            data = pickle.load(f) 
+            data = pickle.load(f)
 
         # ---------- TEST --------------
         test_data = data['test']
         X_test, Y_test, D_test = test_data
+        print(f"Size of test_data X_test {X_test.shape[1]}")
         X_test = torch.tensor(X_test, dtype=torch.float32)
         Y_test = torch.tensor(Y_test, dtype=torch.long)
         D_test = torch.tensor(D_test)
@@ -261,8 +262,8 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV 
-np.savetxt(r"results_01_07_BNCI2014001_TSMNet.csv", y, delimiter=",", header="reeig, coshP, expT", comments="")
+np.savetxt(r"results_06_07_Lee2019_MI.csv", y, delimiter=",", header="reeig, coshP, expT", comments="")
 
 # Sauvegarder en txt 
-np.savetxt(r"results_01_07_BNCI2014001_TSMNet.txt", y)
+# np.savetxt(r"results_06_07_BNCI2014001_TSMNet.txt", y)
 

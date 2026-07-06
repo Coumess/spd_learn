@@ -24,11 +24,16 @@ class modelSPDNet(nn.Module):
         # -------------------------------------
         # Number of dimensions based on n_chans 
         # -------------------------------------
+
+        if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
+
+        """   
+        
         if n_chans < 20:
             if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
             #if subspacedim2 is None : subspacedim2 = 6
 
-        elif 20 <= n_chans < 35:
+        elif 1 <= n_chans < 35:
             if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
             #if subspacedim2 is None : subspacedim2 = 6
 
@@ -43,7 +48,8 @@ class modelSPDNet(nn.Module):
             #if subspacedim3 is None: subspacedim3 = int(subspacedim2 * 0.5)
             #if subspacedim4 is None: subspacedim4 = 6
 
- 
+        """
+
         # -------------------------------------
         # domain dependent architecture
         # -------------------------------------

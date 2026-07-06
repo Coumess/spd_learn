@@ -9,7 +9,11 @@ using Statistics
 
 #%%
 # Charger le fichier des résultats
-y = readdlm("results_01_07_BNCI2014001_TSMNet.csv", ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
+file = "results_06_07_Lee2019_MI.csv"
+y = readdlm(file , ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
+
+# Nom de la database 
+println("Resultats utilisés : ", file)
 
 # Vérificatione la taille de y (doit être 25xnbr de couches)
 println("Taille de y : ", size(y))
@@ -49,9 +53,9 @@ NK = N * K
 
 println(NK)
 
-d12 = y_vec[1:K:NK] .- y_vec[2:K:NK]                        # ReEig - Cosh
-d13 = y_vec[1:K:NK] .- y_vec[3:K:NK]                        # ReEig - CoshP
-d23 = y_vec[2:K:NK] .- y_vec[3:K:NK]                        # Cosh - CoshP
+d12 = y_vec[1:K:NK] .- y_vec[2:K:NK]                        # ReEig - CoshP
+d13 = y_vec[1:K:NK] .- y_vec[3:K:NK]                        # ReEig - ExpT
+d23 = y_vec[2:K:NK] .- y_vec[3:K:NK]                        # CoshP - ExpT
 
 # Test
 pht = studentMcTestRM([d12, d13, d23])
@@ -107,7 +111,7 @@ end
 
 display(p)
 
-
+#=
 #%%
 #---------------------------------------
 # DONNEES FICTIVES
@@ -200,3 +204,4 @@ histogram(
     title = "Distribution of p-values under H1"
 )
 
+=#
