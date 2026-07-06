@@ -114,14 +114,18 @@ class TSMNetCustom(nn.Module):
             Output tensor of shape (batch_size, n_outputs)
         """
         x_filtered = self.cnn(x[:, None, ...])
-        x_cov = self.covpool(x_filtered)
+        x_cov = self.covpool(x_filtered) # Becoming SPD
+        eigs = torch.linalg.eigvalsh(x_cov)
+        print(f"Eigen values (covpool) min : {eigs.min().item()} and max : {eigs.max().item()}")
         # === Change from spdnet to BiMap + Activation Functions ===
         x_bimap = self.bimap(x_cov)
+        eigs = torch.linalg.eigvalsh(x_bimap)
+        print(f"Eigen values (bimap) min : {eigs.min().item()} and max : {eigs.max().item()}")
         x_activated = self.activation(x_bimap)
         # ==========================================================
         # Juste avant self.spdbnorm(x_activated)
-        eigs = torch.linalg.eigvalsh(x_activated)
+        eigs = torch.linalg.eigvalsh(x_activated) # Computes the eigenvalues of a complex Hermitian or real symmetric matrix
         if torch.any(eigs <= 0):
-            print(f"ALERTE : Matrice non-SPD détectée ! Min Eig: {eigs.min().item()}")
+            print(f"Min Eig : {eigs.min().item()} and Max Eig : {eigs.max().item()}")
         x_tangent = self.logeig(self.spdbnorm(x_activated))
         return self.head(x_tangent)
