@@ -45,7 +45,7 @@ class TSMNetCustom(nn.Module):
         n_temp_filters=4,
         temp_kernel_length=25,
         n_spatiotemp_filters=40,
-        n_bimap_filters=20,
+        n_bimap_filters=None,
         threshold=1e-4,
         n_outputs=None,
     ):
@@ -64,6 +64,10 @@ class TSMNetCustom(nn.Module):
         self.n_bimap_filters = n_bimap_filters
         self.activation_type = activation
         self.threshold = threshold
+
+        # Compute the bimap filter dimension in a sense 
+        if n_bimap_filters is None:
+            self.n_bimap_filters = int(n_spatiotemp_filters * 0.5)
 
         n_tangent_dim = int(n_bimap_filters * (n_bimap_filters + 1) / 2)
 

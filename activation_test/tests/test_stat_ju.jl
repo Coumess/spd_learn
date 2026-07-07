@@ -9,7 +9,7 @@ using Statistics
 
 #%%
 # Charger le fichier des résultats
-file = "results_06_07_Lee2019_MI.csv"
+file = "results_2blocks_07_07_Lee2019MI.csv"
 y = readdlm(file , ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
 
 # Nom de la database 

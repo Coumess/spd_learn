@@ -262,7 +262,7 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV 
-np.savetxt(r"results_06_07_Lee2019_MI.csv", y, delimiter=",", header="reeig, coshP, expT", comments="")
+np.savetxt(r"results_2blocks_07_07_Schirrmeister2017.csv", y, delimiter=",", header="reeig, coshP, expT", comments="")
 
 # Sauvegarder en txt 
 # np.savetxt(r"results_06_07_BNCI2014001_TSMNet.txt", y)
