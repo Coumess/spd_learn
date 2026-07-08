@@ -9,7 +9,7 @@ using Statistics
 
 #%%
 # Charger le fichier des résultats
-file = "results_2blocks_07_07_Lee2019MI.csv"
+file = "results_2blocks_07_07_GrosseWentrup2009.csv"
 y = readdlm(file , ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
 
 # Nom de la database 
@@ -63,9 +63,9 @@ pht = studentMcTestRM([d12, d13, d23])
 println("\n=== RESULTATS POST-HOC ===")
 println(pht.p)
 println(pht.obsstat)
-println("moyenne de ReEig : ", mean(y[:,1]), " +/- ", std(y[:,1]))
-println("moyenne de CoshP : ", mean(y[:,2]), " +/- ", std(y[:,2]))
-println("moyenne de ExpT : ", mean(y[:,3]), " +/- ", std(y[:,3]))
+println("moyenne de ReEig : ", round(mean(y[:,1]), digits=4), " +/- ", round(std(y[:,1]), digits=4))
+println("moyenne de CoshP : ", round(mean(y[:,2]), digits=4), " +/- ", round(std(y[:,2]), digits=4))
+println("moyenne de ExpT : ", round(mean(y[:,3]), digits=4), " +/- ", round(std(y[:,3]), digits=4))
 
 #%% Bar plot moyennes et écarts types
 

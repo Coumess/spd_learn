@@ -27,7 +27,7 @@ class modelSPDNet(nn.Module):
 
         if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
         if subspacedim2 is None : subspacedim2 = int(n_chans * 0.25)
-
+        if subspacedim3 is None : subspacedim3 = int(n_chans * 0.125)
         """   
         
         if n_chans < 20:
@@ -65,9 +65,11 @@ class modelSPDNet(nn.Module):
                 "bimap2" : BiMap(subspacedim1, subspacedim2),
                 # "reeig2" : ReEig(self.threshold),
                 "activation2": self._make_activation(n = subspacedim2),
+                "bimap3" : BiMap(subspacedim2, subspacedim3),
+                "activation3" : self._make_activation(n = subspacedim3),
             }
             
-            last_dim = subspacedim2
+            last_dim = subspacedim3
 
             """
             # 3rd BiMap if defined

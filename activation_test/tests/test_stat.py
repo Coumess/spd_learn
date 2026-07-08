@@ -113,7 +113,7 @@ for seed in seeds :
 
         res_couche = []
 
-        for layer in ["reeig", "coshP", "expT"]:                                              # Remove cosh, expP, tanheig
+        for layer in ["reeig", "expT"]:                                              # Remove  "coshP, cosh, expP, tanheig
             set_seed(seed)
             n_chans = X_train.shape[1]
             n_outputs = len(torch.unique(Y_train))
@@ -262,7 +262,7 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV 
-np.savetxt(r"results_2blocks_07_07_Schirrmeister2017.csv", y, delimiter=",", header="reeig, coshP, expT", comments="")
+np.savetxt(r"results_3blocks_07_07_Schirrmeister2017.csv", y, delimiter=",", header="reeig, expT", comments="") # Remove coshP
 
 # Sauvegarder en txt 
 # np.savetxt(r"results_06_07_BNCI2014001_TSMNet.txt", y)
