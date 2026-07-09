@@ -25,6 +25,7 @@ sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test/mo
 
 from preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
 from activation_test.models_.model_SPD import modelSPDNet
+from activation_test.utils.layer_monitoring import LayerMonitor
 
 # Nouveau model Matt 
 # from activation_test.models_.model_Matt import modelMAtt_Custom
@@ -128,6 +129,7 @@ for seed in seeds :
                 threshold = 1e-4,
                 domains = domains
             )
+            monitor = LayerMonitor().attach(spdnet)
 
             #----------- Training configuration ------------
             max_epochs = 75
@@ -216,7 +218,10 @@ for seed in seeds :
                         print("Early stopping!")
                         spdnet.load_state_dict(best_model_state)
                         break
+                monitor.epoch_end()
             print(">>> JE SUIS APRES LA BOUCLE")
+            monitor.plot(save_path=f"monitor_{layer}.png")
+            monitor.remove()
             #--------- TEST --------- 
             spdnet.eval()
             correct = 0
@@ -262,7 +267,7 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV 
-np.savetxt(r"results_3blocks_07_07_Schirrmeister2017.csv", y, delimiter=",", header="reeig, expT", comments="") # Remove coshP
+np.savetxt(r"test_balek", y, delimiter=",", header="reeig, expT", comments="") # Remove coshP
 
 # Sauvegarder en txt 
 # np.savetxt(r"results_06_07_BNCI2014001_TSMNet.txt", y)
