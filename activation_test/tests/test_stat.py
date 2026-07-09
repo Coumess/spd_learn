@@ -25,11 +25,7 @@ sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test/mo
 
 from preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
 from activation_test.models_.model_SPD import modelSPDNet
-from activation_test.utils.layer_monitoring import LayerMonitor
-
-# Nouveau model Matt 
-# from activation_test.models_.model_Matt import modelMAtt_Custom
-
+from hooker_plot import LayerPlot
 
 
 #-----------------------------------------------
@@ -59,11 +55,12 @@ list_files = [ file for file in os.listdir(path) if file.endswith(".pkl")]
 #-----------------------------------------------
 seeds = [1,2,3,4,5]
 res_seed = {}
+grand_historique = {}
 for seed in seeds :
     print(f"\n===== SEED {seed} =====")
 
     res_fold = {}
-    
+    grand_historique[seed] = {}
     for i,file in enumerate(list_files) :
         
         path_data = os.path.join(path, file)
@@ -114,6 +111,8 @@ for seed in seeds :
 
         res_couche = []
 
+        grand_historique[seed][file] = {}
+
         for layer in ["reeig", "expT"]:                                              # Remove  "coshP, cosh, expP, tanheig
             set_seed(seed)
             n_chans = X_train.shape[1]
@@ -129,7 +128,8 @@ for seed in seeds :
                 threshold = 1e-4,
                 domains = domains
             )
-            monitor = LayerMonitor().attach(spdnet)
+            plotter = LayerPlot()
+            plotter.hooker(spdnet)
 
             #----------- Training configuration ------------
             max_epochs = 75
@@ -218,10 +218,9 @@ for seed in seeds :
                         print("Early stopping!")
                         spdnet.load_state_dict(best_model_state)
                         break
-                monitor.epoch_end()
+                plotter.compute_epoch_stats()
             print(">>> JE SUIS APRES LA BOUCLE")
-            monitor.plot(save_path=f"monitor_{layer}.png")
-            monitor.remove()
+            grand_historique[seed][file][layer] = plotter.epochs_stats
             #--------- TEST --------- 
             spdnet.eval()
             correct = 0
@@ -272,3 +271,22 @@ np.savetxt(r"test_balek", y, delimiter=",", header="reeig, expT", comments="") #
 # Sauvegarder en txt 
 # np.savetxt(r"results_06_07_BNCI2014001_TSMNet.txt", y)
 
+def plot_specific_fold(seed, file, couche_cible="activation1", metrique="mean_eig"):
+    plt.figure(figsize=(10, 6))
+
+    # On récupère les données précises
+    donnees_reeig = grand_historique[seed][file]["reeig"][couche_cible][metrique]
+    donnees_expt = grand_historique[seed][file]["expT"][couche_cible][metrique]
+
+    plt.plot(donnees_reeig, label="ReEig", color="blue", linewidth=2)
+    plt.plot(donnees_expt, label="ExpT", color="orange", linewidth=2)
+
+    plt.title(f"Comparaison ReEig vs ExpT | Seed {seed} | Fold {file}")
+    plt.xlabel("Époques")
+    plt.ylabel(metrique)
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# Exemple d'utilisation (assure-toi d'utiliser le bon nom de fichier)
+plot_specific_fold(seed=1, file=list_files[0])
