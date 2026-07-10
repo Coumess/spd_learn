@@ -21,9 +21,13 @@ class LayerPlot:
                         """
                         To know the output of each layer of my model.
                         """
-                        eig = torch.linalg.eigvalsh(output)
-                        eig_mean = eig.mean().item()
-                        eig_max = eig.max().item()
+                        try:
+                            eig = torch.linalg.eigvalsh(output)
+                            eig_mean = eig.mean().item()
+                            eig_max = eig.max().item()
+                        except Exception: # la matrice a explosé : eigvalsh ne converge plus
+                            eig_mean = float("nan")
+                            eig_max = float("inf")
                         tr = trace(output)
                         tr_max = tr.max().item()
                         
