@@ -62,14 +62,14 @@ class modelSPDNet(nn.Module):
                 "bimap1" : BiMap(n_chans, subspacedim1),
                 #"reeig1" : ReEig(self.threshold),
                 "activation1": self._make_activation(n = subspacedim1),
-                #"bimap2" : BiMap(subspacedim1, subspacedim2),
+                "bimap2" : BiMap(subspacedim1, subspacedim2),
                 # "reeig2" : ReEig(self.threshold),
-                #"activation2": self._make_activation(n = subspacedim2),
+                "activation2": self._make_activation(n = subspacedim2),
                 #"bimap3" : BiMap(subspacedim2, subspacedim3),
                 #"activation3" : self._make_activation(n = subspacedim3),
             }
             
-            last_dim = subspacedim1
+            last_dim = subspacedim2
 
             """
             # 3rd BiMap if defined

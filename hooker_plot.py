@@ -1,5 +1,6 @@
 import torch
 from collections import defaultdict
+import math
 
 from test_layer_equalization import trace
 # =====================================================================================
@@ -25,6 +26,9 @@ class LayerPlot:
                         eig_max = eig.max().item()
                         tr = trace(output)
                         tr_max = tr.max().item()
+                        
+                        if math.isnan(tr_max) or math.isinf(tr_max) or tr_max > 10000:
+                            print("\n +++++++++++++++++ ALERTE trace a EXPLOSE +++++++++++++++++")
 
                         self.batch_stats[name]['mean_eig'].append(eig_mean)
                         self.batch_stats[name]['max_eig'].append(eig_max)
