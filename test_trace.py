@@ -21,45 +21,39 @@ sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test/mo
 from preprocessing.data_scripts.get_eeg_data import DomainBatchSampler
 from activation_test.models_.model_SPD import modelSPDNet
 from hooker_plot import LayerPlot
-from spd_learn.functional.numerical import get_epsilon
 
 
 # =====================================================================
-# PLOT : grille 2x2 par couche
-#   Haut  = ECHELLE  (mean eigenvalue, max trace)  -> "c'est gros ?"
-#   Bas   = DANGER   (min eigenvalue, condition number) avec LIGNE ROUGE
-#           -> repond a "c'est trop haut / trop bas ?" pour le crash de LogEig
-# Couleur des points = époque (dégradé)
+# PLOT : 3 panels per layer -> Mean eigenvalue | Max eigenvalue | Max trace
+#   Red line on the trace (10000): above it = it exploded
+#   Point color = epoch (gradient)
 # =====================================================================
 def plot_layer_stats(epochs_stats, activation_name, num_epochs, save_path=None):
-    log_floor = get_epsilon(torch.float32, "eigval_log")   # seuil de clamp de LogEig (~1.19e-5 en float32)
-    COND_DANGER = 1e6                                       # au-dela, eigh (float32) devient non fiable
+    TRACE_DANGER = 1e4   # above 10000 we consider the trace has exploded
 
-    # (clé, titre, scale, ligne_danger, sens)
+    # (key, title, danger_line)
     panels = [
-        ("mean_eig",  "Mean eigenvalue (scale)",     "log",    None,        None),
-        ("max_trace", "Max trace (energy)",          "log",    None,        None),
-        ("min_eig",   "Min eigenvalue",              "symlog", log_floor,   "below"),  # danger EN DESSOUS de la ligne
-        ("cond",      "Condition number (max/min)",  "log",    COND_DANGER, "above"),  # danger AU DESSUS de la ligne
+        ("mean_eig",  "Mean eigenvalue",  None),
+        ("max_eig",   "Max eigenvalue",   None),
+        ("max_trace", "Max trace",        TRACE_DANGER),
     ]
 
     layers = list(epochs_stats.keys())                  # bimap1, activation1, ...
-    x = np.arange(len(layers))                          # position des couches sur X
-    colors = cm.viridis(np.linspace(0, 1, num_epochs))  # dégradé = temps (époque)
+    x = np.arange(len(layers))                          # layer positions on the X axis
+    colors = cm.viridis(np.linspace(0, 1, num_epochs))  # gradient = time (epoch)
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True)
-    axes = axes.ravel()
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5), constrained_layout=True)
 
-    for ax, (key, title, scale, danger, sense) in zip(axes, panels):
+    for ax, (key, title, danger) in zip(axes, panels):
         for e in range(num_epochs):
             try:
-                y = [epochs_stats[l][key][e] for l in layers]   # profil des couches à l'époque e
+                y = [epochs_stats[l][key][e] for l in layers]   # layer profile at epoch e
             except (IndexError, KeyError):
-                break                                            # early stopping avant num_epochs
-            ax.plot(x, y, color=colors[e], alpha=0.3, lw=1, zorder=1)          # ligne qui relie les couches
+                break                                            # early stopping before num_epochs
+            ax.plot(x, y, color=colors[e], alpha=0.3, lw=1, zorder=1)          # line linking the layers
             ax.scatter(x, y, color=colors[e], s=45, alpha=0.9,                 # points
                        edgecolors="white", linewidths=0.4, zorder=2)
-        ax.set_yscale(scale)
+        ax.set_yscale("log")                                     # log: values span many orders of magnitude
         ax.set_title(title, fontweight="bold")
         ax.set_xlabel("SPD layer")
         ax.set_ylabel("value")
@@ -67,20 +61,18 @@ def plot_layer_stats(epochs_stats, activation_name, num_epochs, save_path=None):
         ax.set_xticklabels(layers, rotation=30, ha="right")
         ax.grid(True, which="both", ls="--", alpha=0.3)
 
-        if danger is not None:                                    # ligne rouge = frontiere du crash
+        if danger is not None:                                    # red line = explosion threshold
             ax.axhline(danger, color="red", ls="--", lw=1.5)
-            label = "danger below" if sense == "below" else "danger above"
-            ax.text(0.02, danger, f"{label} ({danger:.0e})", color="red",
+            ax.text(0.02, danger, f"explosion above ({danger:.0e})", color="red",
                     va="bottom", ha="left", fontsize=9,
                     transform=ax.get_yaxis_transform())
 
-    # Colorbar commune = axe temporel (numéro d'époque)
+    # Shared colorbar = time axis (epoch number)
     sm = cm.ScalarMappable(cmap=cm.viridis, norm=plt.Normalize(vmin=1, vmax=num_epochs))
     sm.set_array([])
-    fig.colorbar(sm, ax=axes.tolist(), label="Training epoch", shrink=0.6)
+    fig.colorbar(sm, ax=axes.tolist(), label="Training epoch", shrink=0.7)
 
-    fig.suptitle(f"Layer diagnostics across training  |  activation: {activation_name}\n"
-                 f"(red line = crash boundary for LogEig)",
+    fig.suptitle(f"Layer diagnostics across training  |  activation: {activation_name}",
                  fontsize=14, fontweight="bold")
     if save_path:
         fig.savefig(save_path, dpi=130, bbox_inches="tight")
