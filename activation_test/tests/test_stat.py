@@ -134,7 +134,7 @@ for seed in seeds :
 
         res_couche = []
 
-        for layer in ["reeig", "expT", "exp", "cosh"]:
+        for layer in ["reeig", "expT", "expP", "cosh"]:
             print(f"\n---> Entraînement avec l'activation : {layer}")
             set_seed(seed)
             n_chans = X_train.shape[1]
@@ -292,7 +292,7 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV
-np.savetxt(r"results_4activations.csv", y, delimiter=",", header="reeig, expT, exp, cosh", comments="")
+np.savetxt(r"results_4activations.csv", y, delimiter=",", header="reeig, expT, expP, cosh", comments="")
 
 #-----------------------------------------------------------
 # Sauvegarde lisible des paramètres scalaires (alpha) + accuracy
