@@ -6,28 +6,48 @@ using PermutationTests
 using Plots
 using Random
 using Statistics
+using Printf
+
+# Colonnes des CSV (ordre des activations dans test_stat.py)
+labels = ["ReEig", "ExpT", "ExpP", "Cosh"]
+
+# Formatage p-value façon papier (digits=3). Comme p >= minp, on ne peut
+# écrire "p<0.001" que si le test peut réellement descendre sous 0.001.
+fmt_p(p) = p < 0.001 ? "p<0.001" : @sprintf("p=%.3f", p)
 
 #%%
-# Charger le fichier des résultats
-file = "results_2blocks_07_07_GrosseWentrup2009.csv"
+# Charger le fichier des résultats (un seul dataset)
+file = "results_4activations.csv"
 y = readdlm(file , ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
 
-# Nom de la database 
+# Nom de la database
 println("Resultats utilisés : ", file)
 
-# Vérificatione la taille de y (doit être 25xnbr de couches)
+# Vérificatione la taille de y (doit être (folds*seeds) x nbr de couches)
 println("Taille de y : ", size(y))
 
-# Transformer y en vecteur 
+# Transformer y en vecteur
 y_vec = vec(permutedims(y))
 #y_vec = vcat(y...)
-# Vérification : y doit etre de taille 25*nbr_couches
-println("Longueur y_vec : ", length(y_vec)) 
+# Vérification : y doit etre de taille (folds*seeds)*nbr_couches
+println("Longueur y_vec : ", length(y_vec))
 println("Première ligne y :")
 println(y[1,:])
 
 println("Premier bloc y_vec :")
-println(y_vec[1:4])
+println(y_vec[1:size(y,2)])
+
+#%%
+#---------------------------------------
+# MEAN & STD (across folds and seeds)
+#---------------------------------------
+N = size(y, 1)                                             # nombre de runs = folds*seeds
+K = size(y, 2)                                             # nombre de couches (activations)
+
+println("\n=== MEAN ± STD (across folds and seeds) | N=$N runs ===")
+for k in 1:K
+    @printf("%-8s : %.3f ± %.3f\n", labels[k], mean(y[:,k]), std(y[:,k]))
+end
 
 #%%
 #---------------------------------------
@@ -36,45 +56,41 @@ println(y_vec[1:4])
 N_rows = size(y, 1)
 K_cols = size(y,2)
 res = anovaTestRM(y_vec, (n=N_rows, k=K_cols))
-println("\n=== RESULTAT ANOVA ===")
+println("\n=== RESULTAT ANOVA (omnibus, repeated-measures) ===")
 println(res)
+@printf("F = %.3f | %s | minp = %.2e\n", res.obsstat, fmt_p(res.p), res.minp)
 
 
 #%%
 #---------------------------------------
 # TEST POST HOC
 #---------------------------------------
-# Paramètres 
-N = size(y, 1)                                             # nombre de runs = 25
-K = size(y, 2)                                             # nombre de couches = 4
-
-# Construction des différences 
+# Paramètres
 NK = N * K
 
 println(NK)
 
-d12 = y_vec[1:K:NK] .- y_vec[2:K:NK]                        # ReEig - CoshP
-d13 = y_vec[1:K:NK] .- y_vec[3:K:NK]                        # ReEig - ExpT
-d23 = y_vec[2:K:NK] .- y_vec[3:K:NK]                        # CoshP - ExpT
+# Construction des différences : TOUTES les paires (i<j)
+pairs = [(i, j) for i in 1:K for j in i+1:K]               # 6 paires pour K=4
+diffs = [y_vec[i:K:NK] .- y_vec[j:K:NK] for (i, j) in pairs]
 
-# Test
-pht = studentMcTestRM([d12, d13, d23])
+# Test (correction multiple des comparaisons intégrée)
+pht = studentMcTestRM(diffs)
 
-println("\n=== RESULTATS POST-HOC ===")
-println(pht.p)
-println(pht.obsstat)
-println("moyenne de ReEig : ", round(mean(y[:,1]), digits=4), " +/- ", round(std(y[:,1]), digits=4))
-println("moyenne de CoshP : ", round(mean(y[:,2]), digits=4), " +/- ", round(std(y[:,2]), digits=4))
-println("moyenne de ExpT : ", round(mean(y[:,3]), digits=4), " +/- ", round(std(y[:,3]), digits=4))
+println("\n=== RESULTATS POST-HOC (paired Student t, multiple-comparison corrected) ===")
+@printf("minp = %.2e\n", pht.minp)
+for (m, (i, j)) in enumerate(pairs)
+    @printf("%-8s vs %-8s : t = %+.3f | %s\n",
+            labels[i], labels[j], pht.obsstat[m], fmt_p(pht.p[m]))
+end
 
 #%% Bar plot moyennes et écarts types
 
 gr()
 
-moyennes = [mean(y[:,1]), mean(y[:,2]), mean(y[:,3])]
-ecarts   = [std(y[:,1]), std(y[:,2]), std(y[:,3])]
+moyennes = [mean(y[:,k]) for k in 1:K]
+ecarts   = [std(y[:,k])  for k in 1:K]
 
-labels = ["ReEig", "CoshP", "ExpT"]
 x = 1:length(labels)
 
 p = bar(
@@ -123,23 +139,23 @@ n_iter = 10000
 
 pvals = zeros(n_iter)
 
-# Test pour H0 
+# Test pour H0
 for i in 1:n_iter
 
     # H0 vraie : aucune différence entre colonnes
     y = randn(N, K)
 
-    # Format pour le test 
+    # Format pour le test
     y_vec = vec(permutedims(y))
 
-    # ANOVA 
+    # ANOVA
     res = anovaTestRM(y_vec, (n=N, k=K))
 
     # stocker p-value
     pvals[i] = res.p
 end
 
-# Taux de rejet 
+# Taux de rejet
 # ---------------------------
 println("Empirical rejection rate (alpha=0.05): ",
         mean(pvals .< 0.05))
@@ -168,7 +184,7 @@ n_iter = 10000
 
 pvals = zeros(n_iter)
 
-# Test pour H1 
+# Test pour H1
 for i in 1:n_iter
 
     # H1 vraie : différence entre colonnes
@@ -177,17 +193,17 @@ for i in 1:n_iter
     # une couche meilleure
     y[:,3] .+= 0.5
 
-    # Format pour le test 
+    # Format pour le test
     y_vec = vec(permutedims(y))
 
-    # ANOVA 
+    # ANOVA
     res = anovaTestRM(y_vec, (n=N, k=K))
 
     # stocker p-value
     pvals[i] = res.p
 end
 
-# Taux de rejet 
+# Taux de rejet
 # ---------------------------
 println("Empirical power (alpha=0.05): ",
         mean(pvals .< 0.05))

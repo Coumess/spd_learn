@@ -276,7 +276,7 @@ for seed in seeds :
                 "test_bacc": test_balanced_accuracy,
                 "params": extract_learned_params(spdnet),
             }
-            with open("learned_params_Cho2017.txt", "wb") as fpk:
+            with open("learned_params_BNCI2014001.pkl", "wb") as fpk:
                 pickle.dump(learned_params, fpk)
         res_fold[i] = res_couche
     res_seed[seed] = res_fold
@@ -292,13 +292,13 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV
-np.savetxt(r"results_4activations_Cho2017.csv", y, delimiter=",", header="reeig, expT, expP, cosh", comments="")
+np.savetxt(r"results_4activations_BNCI2014001.csv", y, delimiter=",", header="reeig, expT, expP, cosh", comments="")
 
 #-----------------------------------------------------------
 # Sauvegarde lisible des paramètres scalaires (alpha) + accuracy
 # (les matrices W complètes sont dans learned_params.pkl)
 #-----------------------------------------------------------
-with open("learned_params_Cho2017.txt", "w") as fsum:
+with open("learned_params_BNCI2014001.txt", "w") as fsum:
     for s in learned_params:
         for fl in learned_params[s]:
             for act in learned_params[s][fl]:
