@@ -6,7 +6,7 @@ from spd_learn.functional import covariance
 from spd_learn.modules import BiMap, CovLayer, LogEig, SPDBatchNormMeanVar, ReEig
 
 from activation_test.activation.spectral import PowerEig, SpAEig, TanhEig
-from activation_test.activation.elementwise import activationSPD, coshP, polynomialActivation, sinhP, expT, expP
+from activation_test.activation.elementwise import activationSPD, coshP, coshPTraceNorm, polynomialActivation, sinhP, expT, expP
 
 class modelSPDNet(nn.Module): 
 
@@ -62,14 +62,14 @@ class modelSPDNet(nn.Module):
                 "bimap1" : BiMap(n_chans, subspacedim1),
                 #"reeig1" : ReEig(self.threshold),
                 "activation1": self._make_activation(n = subspacedim1),
-                "bimap2" : BiMap(subspacedim1, subspacedim2),
+                # "bimap2" : BiMap(subspacedim1, subspacedim2),
                 # "reeig2" : ReEig(self.threshold),
-                "activation2": self._make_activation(n = subspacedim2),
+                # "activation2": self._make_activation(n = subspacedim2),
                 #"bimap3" : BiMap(subspacedim2, subspacedim3),
                 #"activation3" : self._make_activation(n = subspacedim3),
             }
             
-            last_dim = subspacedim2
+            last_dim = subspacedim1
 
             """
             # 3rd BiMap if defined
@@ -119,9 +119,15 @@ class modelSPDNet(nn.Module):
 
         elif self.activation_type == "cosh":
             return activationSPD(mode="cosh")
+
+        elif self.activation_type == "exp":
+            return activationSPD(mode="exp")
         
         elif self.activation_type == "coshP":
             return coshP()
+
+        elif self.activation_type == "coshPnorm":
+            return coshPTraceNorm()
 
         elif self.activation_type == "sinhP":
             return sinhP()

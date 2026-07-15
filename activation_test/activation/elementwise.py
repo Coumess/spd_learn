@@ -1,7 +1,7 @@
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as f 
-from activation_test.activation.utils_elementwise import cosh_parametric, sinh_parametric, truncated_exponential, exp_parametric, polynomialFunction
+from activation_test.activation.utils_elementwise import cosh_parametric, cosh_parametric_tracenorm, sinh_parametric, truncated_exponential, exp_parametric, polynomialFunction
 
 
 """
@@ -24,11 +24,13 @@ class activationSPD(torch.nn.Module):
         super().__init__()
         self.mode = mode
 
-    def forward(self, X): 
+    def forward(self, X):
         if self.mode == "cosh":
             Y = torch.cosh(X)
-        elif self.mode == "sinh" : 
+        elif self.mode == "sinh" :
             Y = torch.sinh(X)
+        elif self.mode == "exp" :
+            Y = torch.exp(X)
 
         Y = (Y + Y.mT)/2               # To ensure symmetry
 
@@ -68,17 +70,64 @@ class coshP(torch.nn.Module):
     def forward(self, X):
         alpha_sp = f.softplus(self.alpha)                                               # Softplus function to ensure the positivity of alpha, initialized to 0.5
 
-        if self.autograd == True : 
+        if self.autograd == True :
             output = torch.cosh(alpha_sp * X)
         else :
             output = cosh_parametric.apply(X, alpha_sp)
-        
+
+        return output
+
+
+
+# Parametric Hyperbolic Cosine, trace-normalized - (tr[X]/tr[cosh(alpha*X)]) * cosh(alpha * X)
+class coshPTraceNorm(torch.nn.Module):
+
+    """ Activation Layer based on the parametric hyperbolic cosine of the entries of the SPD matrix,
+    rescaled by the ratio of the input trace to the output trace.
+
+    Maths
+    -------------
+        (tr[X] / tr[cosh(alpha * X)]) * cosh(alpha * X)
+
+    Parameters
+    -------------
+    alpha_init : float
+        initial value of the parameter alpha
+
+    """
+
+    def __init__(self, autograd = False, alpha_init = -0.43, device = None, dtype = None):
+        super().__init__()
+
+        self.register_parameter(
+            "alpha",
+            nn.Parameter(
+                torch.tensor(alpha_init, device = device, dtype = dtype),
+            requires_grad = True
+            ),
+        )
+
+        self.autograd = autograd
+
+    def forward(self, X):
+        alpha_sp = f.softplus(self.alpha)                                               # Softplus function to ensure the positivity of alpha, initialized to 0.5
+
+        if self.autograd == True :
+            Z = alpha_sp * X
+            C = torch.cosh(Z)
+            t = torch.diagonal(X, dim1=-2, dim2=-1).sum(-1)
+            c = torch.diagonal(C, dim1=-2, dim2=-1).sum(-1)
+            s = t / c
+            output = s.unsqueeze(-1).unsqueeze(-1) * C
+        else :
+            output = cosh_parametric_tracenorm.apply(X, alpha_sp)
+
         return output
 
 
 
 # Parametric Hyperbolic Sine - sinh(alpha * X)
-class sinhP(torch.nn.Module): 
+class sinhP(torch.nn.Module):
 
     """ Activation Layer based on the parametric hyperbolic sine of the entries of the SPD matrix. 
     

@@ -2,6 +2,7 @@ import sys
 # sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn")
@@ -39,10 +40,33 @@ def set_seed(seed : int):
     torch.cuda.manual_seed_all(seed)
 
     torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False 
+    torch.backends.cudnn.benchmark = False
 
 #-----------------------------------------------
-# Path to the folds of a dataset 
+# Extraction des paramètres appris (W des BiMap, alpha des activations)
+#-----------------------------------------------
+def extract_learned_params(model):
+    params = {}
+    for domain, block in model.domains_block.items():
+        block_params = {}
+        for name, layer in block.items():
+            entry = {"type": type(layer).__name__}
+            if isinstance(layer, BiMap):
+                entry["W"] = layer.weight.detach().cpu().numpy()
+            if hasattr(layer, "alpha"):
+                entry["alpha_raw"] = layer.alpha.detach().cpu().numpy()
+                entry["alpha"] = F.softplus(layer.alpha).detach().cpu().numpy()
+            if hasattr(layer, "alphaE"):
+                entry["alpha_raw"] = layer.alphaE.detach().cpu().numpy()
+                entry["alpha"] = F.softplus(layer.alphaE).detach().cpu().numpy()
+            if hasattr(layer, "w"):
+                entry["w"] = F.softplus(layer.w).detach().cpu().numpy()
+            block_params[name] = entry
+        params[domain] = block_params
+    return params
+
+#-----------------------------------------------
+# Path to the folds of a dataset
 #-----------------------------------------------
 path = t.filedialog.askdirectory(title="Select the folder containing the data")            # Path to the folder containing the data
 print("Path of selected folder : ", path)
@@ -55,6 +79,7 @@ list_files = [ file for file in os.listdir(path) if file.endswith(".pkl")]
 #-----------------------------------------------
 seeds = [1,2,3,4,5]
 res_seed = {}
+learned_params = {}
 for seed in seeds :
     print(f"\n===== SEED {seed} =====")
 
@@ -109,8 +134,8 @@ for seed in seeds :
 
         res_couche = []
 
-        for layer in ["reeig", "coshP", "expT"]:
-            print(f"\n---> Entraînement avec l'activation : {layer}")                                              # Remove  cosh, expP, tanheig
+        for layer in ["reeig", "expT", "expP", "cosh"]:
+            print(f"\n---> Entraînement avec l'activation : {layer}")
             set_seed(seed)
             n_chans = X_train.shape[1]
             n_outputs = len(torch.unique(Y_train))
@@ -245,6 +270,14 @@ for seed in seeds :
             print(f"\nTest Balanced Accuracy {test_balanced_accuracy:.4f}")
 
             res_couche.append(test_balanced_accuracy)
+
+            # Sauvegarde des paramètres appris pour ce (seed, fold, activation)
+            learned_params.setdefault(seed, {}).setdefault(file, {})[layer] = {
+                "test_bacc": test_balanced_accuracy,
+                "params": extract_learned_params(spdnet),
+            }
+            with open("learned_params_Cho2017.txt", "wb") as fpk:
+                pickle.dump(learned_params, fpk)
         res_fold[i] = res_couche
     res_seed[seed] = res_fold
 
@@ -258,8 +291,23 @@ for seed in res_seed:
 
 y = np.array(y)
 
-# Sauvegarder en CSV 
-np.savetxt(r"test_balek", y, delimiter=",", header="reeig, coshP, expT", comments="") 
+# Sauvegarder en CSV
+np.savetxt(r"results_4activations_Cho2017.csv", y, delimiter=",", header="reeig, expT, expP, cosh", comments="")
 
-# Sauvegarder en txt 
-# np.savetxt(r"results_06_07_BNCI2014001_TSMNet.txt", y)
+#-----------------------------------------------------------
+# Sauvegarde lisible des paramètres scalaires (alpha) + accuracy
+# (les matrices W complètes sont dans learned_params.pkl)
+#-----------------------------------------------------------
+with open("learned_params_Cho2017.txt", "w") as fsum:
+    for s in learned_params:
+        for fl in learned_params[s]:
+            for act in learned_params[s][fl]:
+                rec = learned_params[s][fl][act]
+                fsum.write(f"seed={s} | fold={fl} | activation={act} | test_bacc={rec['test_bacc']:.4f}\n")
+                for dom, block in rec["params"].items():
+                    for lname, e in block.items():
+                        if "alpha" in e:
+                            fsum.write(f"    {dom} | {lname} ({e['type']}) : alpha={np.ravel(e['alpha'])}\n")
+                fsum.write("\n")
+
+print("Paramètres appris sauvegardés dans learned_params.pkl et learned_params_summary.txt")
