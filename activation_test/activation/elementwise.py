@@ -24,11 +24,13 @@ class activationSPD(torch.nn.Module):
         super().__init__()
         self.mode = mode
 
-    def forward(self, X): 
+    def forward(self, X):
         if self.mode == "cosh":
             Y = torch.cosh(X)
-        elif self.mode == "sinh" : 
+        elif self.mode == "sinh" :
             Y = torch.sinh(X)
+        elif self.mode == "exp" :
+            Y = torch.exp(X)
 
         Y = (Y + Y.mT)/2               # To ensure symmetry
 

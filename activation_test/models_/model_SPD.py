@@ -119,6 +119,9 @@ class modelSPDNet(nn.Module):
 
         elif self.activation_type == "cosh":
             return activationSPD(mode="cosh")
+
+        elif self.activation_type == "exp":
+            return activationSPD(mode="exp")
         
         elif self.activation_type == "coshP":
             return coshP()
