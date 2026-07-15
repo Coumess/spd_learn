@@ -6,7 +6,7 @@ from spd_learn.functional import covariance
 from spd_learn.modules import BiMap, CovLayer, LogEig, SPDBatchNormMeanVar, ReEig
 
 from activation_test.activation.spectral import PowerEig, SpAEig, TanhEig
-from activation_test.activation.elementwise import activationSPD, coshP, polynomialActivation, sinhP, expT, expP
+from activation_test.activation.elementwise import activationSPD, coshP, coshPTraceNorm, polynomialActivation, sinhP, expT, expP
 
 class modelSPDNet(nn.Module): 
 
@@ -122,6 +122,9 @@ class modelSPDNet(nn.Module):
         
         elif self.activation_type == "coshP":
             return coshP()
+
+        elif self.activation_type == "coshPnorm":
+            return coshPTraceNorm()
 
         elif self.activation_type == "sinhP":
             return sinhP()
