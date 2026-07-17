@@ -17,7 +17,7 @@ fmt_p(p) = p < 0.001 ? "p<0.001" : @sprintf("p=%.3f", p)
 
 #%%
 # Charger le fichier des résultats (un seul dataset)
-file = "results_4activations.csv"
+file = "results_4activations_Zhou2016.csv"
 y = readdlm(file , ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
 
 # Nom de la database
@@ -113,9 +113,9 @@ ylims!(ymin - margin, ymax + margin)
 offset = 0.03 * (ymax - ymin)
 
 for i in x
-    texte = string(round(moyennes[i], digits=3),
+    texte = string(round(moyennes[i], digits = 6),
                    " ± ",
-                   round(ecarts[i], digits=3))
+                   round(ecarts[i], digits = 6))
 
     annotate!(
         p,

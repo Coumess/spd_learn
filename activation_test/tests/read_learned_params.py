@@ -5,7 +5,7 @@ from collections import defaultdict
 import numpy as np
 
 # Chemin du .pkl (par defaut celui produit par test_stat.py)
-PATH = sys.argv[1] if len(sys.argv) > 1 else "learned_params_BNCI2014001.pkl"
+PATH = sys.argv[1] if len(sys.argv) > 1 else "learned_params_Zhou2016_3_coshPnorm.pkl"
 
 with open(PATH, "rb") as f:
     data = pickle.load(f)   # data[seed][fold][activation] = {"test_bacc":..., "params":...}
