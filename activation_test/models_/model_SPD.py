@@ -24,7 +24,6 @@ class modelSPDNet(nn.Module):
         # -------------------------------------
         # Number of dimensions based on n_chans 
         # -------------------------------------
-        """
         if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
         if subspacedim2 is None : subspacedim2 = int(n_chans * 0.25)
         if subspacedim3 is None : subspacedim3 = int(n_chans * 0.125)
@@ -34,7 +33,6 @@ class modelSPDNet(nn.Module):
         subspacedim3 = 23
         subspacedim4 = 14
         subspacedim5 = 9
-        """   
         
         if n_chans < 20:
             if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
@@ -73,10 +71,11 @@ class modelSPDNet(nn.Module):
                 "activation2": self._make_activation(n = subspacedim2),
                 "bimap3" : BiMap(subspacedim2, subspacedim3),
                 "activation3" : self._make_activation(n = subspacedim3),
-                "bimap4" : BiMap(subspacedim3, subspacedim4),
-                "activation4" : self._make_activation(n = subspacedim4),
-                "bimap5" : BiMap(subspacedim4, subspacedim5),
-                "activation5" : self._make_activation(n = subspacedim5),
+                "reeig2" : ReEig(self.threshold),
+                #"bimap4" : BiMap(subspacedim3, subspacedim4),
+                #"activation4" : self._make_activation(n = subspacedim4),
+                #"bimap5" : BiMap(subspacedim4, subspacedim5),
+                #"activation5" : self._make_activation(n = subspacedim5),
             }
             
             last_dim = subspacedim5
