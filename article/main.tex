@@ -1,0 +1,361 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage[margin=2.5cm]{geometry}
+
+% Notes de travail (à supprimer avant diffusion)
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\newcommand{\spd}{\mathcal{S}_{++}}
+\newcommand{\circop}{\circ}
+
+\title{Element-wise and Spectral Non-Linearities\\for SPD Networks in EEG Decoding}
+\author{Coumes}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\todo{À écrire en dernier.}
+\end{abstract}
+
+%=====================================================================
+\section{Introduction}
+%=====================================================================
+% Ce qu'on teste et pourquoi -- pas de biblio pour l'instant.
+
+\paragraph{Context.}
+Covariance matrices of EEG trials are symmetric positive definite (SPD) and live on a
+Riemannian manifold. SPDNet-like networks process them with layers that keep the output
+SPD: BiMap, a non-linearity, and LogEig to reach a tangent space
+before a Euclidean classifier.
+
+\paragraph{Problem.}
+The standard non-linearity, ReEig, is a spectral ReLU: it clamps eigenvalues below a
+threshold $\epsilon$ and is the identity elsewhere. On well-conditioned covariance matrices
+most eigenvalues are above $\epsilon$, so ReEig is close to the identity and the network is
+nearly linear between BiMap layers. \todo{vérifier sur les stats spectrales de LayerPlot :
+proportion de valeurs propres clampées par couche.}
+
+\paragraph{What we test.}
+We replace ReEig in SPDNet by \emph{element-wise} non-linearities, which act on the matrix
+entries and keep the output SPD without eigen-decomposition: Cosh, its parametric version
+CoshP, and ExpT, a truncated parametric exponential. We ask:
+\begin{enumerate}
+  \item[Q1] Does an element-wise non-linearity improve balanced accuracy over ReEig, all else fixed?
+  \item[Q2] Does the benefit survive, grow, or vanish when the SPD block is stacked
+            (1, 2, 3 layers, then a golden-ratio division)?
+  \item[Q3] Do element-wise activations stay numerically stable in depth, and which
+            normalisation is needed?
+  \item[Q4] What do the learned parameters ($\alpha$) converge to, and do they depend on
+            the layer, the domain, or the dataset?
+\end{enumerate}
+
+\paragraph{Why several layers.}
+\begin{itemize}
+  \item \emph{Expressiveness.} With a single BiMap--activation pair followed by LogEig,
+        the non-linearity is applied once; its effect can be partly absorbed by the
+        classifier. Non-linearities only show their role when composed with further
+        linear (BiMap) maps, as in Euclidean deep networks.
+  \item \emph{Channel reduction.} Datasets with many electrodes (60--128) cannot be
+        reduced to a compact representation by a single BiMap halving the dimension;
+        stacking lets the dimension decrease progressively.
+  \item \emph{Stability.} Element-wise functions such as $\cosh$ or $\exp$ map every
+        entry, including near-zero off-diagonal ones, to values $\geq 1$ (resp.\ $>0$):
+        the trace and the largest eigenvalue grow at each layer. A single layer hides
+        this; stacking reveals it. This motivates the normalisation phase
+        (Section~\ref{sec:phase4}).
+\end{itemize}
+
+\paragraph{Contributions.}
+\todo{à formuler une fois les stats faites} (i) learnable element-wise activations with
+custom backward; (ii) a controlled comparison across 8 motor-imagery datasets and several
+depths; (iii) an analysis of spectral growth and of the learned parameters across layers.
+
+%=====================================================================
+\section{Background: SPD networks}
+%=====================================================================
+\label{sec:background}
+
+Let $X \in \spd^n$. An SPD block is
+\begin{equation}
+  X_{\ell} = \sigma_\ell\!\left(W_\ell^\top X_{\ell-1} W_\ell\right),
+  \qquad W_\ell \in \mathrm{St}(n_{\ell-1}, n_\ell),
+\end{equation}
+where $\mathrm{St}$ is the Stiefel manifold (semi-orthogonal $W_\ell$), $n_\ell < n_{\ell-1}$
+and $\sigma_\ell$ is the activation. The network ends with
+\begin{equation}
+  \mathrm{LogEig}(X) = U \log(\Lambda) U^\top, \qquad
+  \hat y = A \,\mathrm{vech}\!\left(\mathrm{LogEig}(X_L)\right) + b .
+\end{equation}
+
+%=====================================================================
+\section{Activation functions}
+%=====================================================================
+\label{sec:activations}
+
+\subsection{Baseline: ReEig}
+Spectral rectification: $\sigma(X) = U \max(\epsilon, \Lambda)\, U^\top$, with
+$X = U \Lambda U^\top$ and $\epsilon = 10^{-4}$. No learnable parameter.
+
+\subsection{Element-wise activations}
+They apply a scalar function $h$ to each entry: $\sigma(X) = h \circop X$.
+By the Schur product theorem, if $h(x) = \sum_{k \ge 0} c_k x^k$ with $c_k \ge 0$, then
+$h \circop X$ is positive semi-definite for any PSD $X$
+\todo{énoncé exact pour la définie-positivité}.
+All functions below satisfy this condition, so their outputs remain SPD without
+eigen-decomposition.
+
+\begin{table}[h]
+\centering
+\caption{Activations tested in this study ($\circ$: entry-wise; $X^{\circ k}$: entry-wise power).
+$\alpha = \mathrm{softplus}(\tilde\alpha)$, one scalar per layer and per domain.}
+\label{tab:activations}
+\small
+\begin{tabular}{lllll}
+\toprule
+Name & $\sigma(X)$ & Type & Parameters & Init. \\
+\midrule
+ReEig & $U \max(\epsilon,\Lambda) U^\top$         & spectral     & --       & -- \\
+Cosh  & $\cosh \circ X$                           & element-wise & --       & -- \\
+CoshP & $\cosh \circ (\alpha X)$                  & element-wise & $\alpha$ & $\alpha = 0.5$ \\
+ExpT  & $\sum_{k=0}^{K} \frac{\alpha^k}{k!} X^{\circ k}$, $K = 4$ & element-wise & $\alpha$ & $\alpha = 0.5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Why these four.}
+\begin{itemize}
+  \item \textbf{ReEig} -- reference of SPDNet.
+  \item \textbf{Cosh} -- simplest element-wise function preserving SPD; no parameter.
+  \item \textbf{CoshP} -- same function with a learnable scale $\alpha$: isolates the effect
+        of learning the non-linearity (Cosh vs CoshP).
+  \item \textbf{ExpT} -- order-$K$ truncation of $\exp \circ (\alpha X)$: keeps non-negative
+        coefficients (SPD preserved) and grows polynomially instead of exponentially in
+        the entries, which should limit the spectral growth in depth.
+        \todo{appuyer avec les stats spectrales (trace) des nouveaux runs.}
+\end{itemize}
+
+\paragraph{Candidates for later.}
+ExpP ($\exp\circ(\alpha X)$), PolyAct (learnable polynomial coefficients), trace-normalised
+variants, and spectral activations (PowerEig, TanhEig, SpAEig) are implemented and may be
+added after the first phases. \todo{décider lesquelles.}
+
+\subsection{Custom backward}
+For $Y = h_\alpha \circop X$, with upstream gradient $G = \partial L/\partial Y$:
+\begin{equation}
+  \frac{\partial L}{\partial X} = G \odot h'_\alpha(X), \qquad
+  \frac{\partial L}{\partial \alpha} = \sum_{ij} G_{ij}\, \frac{\partial h_\alpha}{\partial \alpha}(X_{ij}),
+\end{equation}
+then $\partial L/\partial\tilde\alpha = \mathrm{sigmoid}(\tilde\alpha)\,\partial L/\partial\alpha$.
+
+\begin{table}[h]
+\centering
+\caption{Derivatives used in the custom backward passes.}
+\label{tab:backward}
+\begin{tabular}{lll}
+\toprule
+Name & $h'_\alpha(x)$ & $\partial h_\alpha / \partial \alpha$ \\
+\midrule
+Cosh  & $\sinh(x)$ & -- \\
+CoshP & $\alpha \sinh(\alpha x)$ & $x \sinh(\alpha x)$ \\
+ExpT  & $\sum_{k=1}^{K} \frac{\alpha^k}{(k-1)!} x^{k-1}$ & $\sum_{k=1}^{K} \frac{\alpha^{k-1}}{(k-1)!} x^{k}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+Custom backward passes are checked against autograd
+(\texttt{test\_coshP.py} and \texttt{test\_expT.py}).
+
+%=====================================================================
+\section{Data}
+%=====================================================================
+\label{sec:data}
+
+\subsection{Datasets}
+Eight motor-imagery datasets from the FII BCI MI corpus are used
+(Table~\ref{tab:datasets}). A \emph{domain} is a subject--session pair; each domain has its
+own SPD block (Section~\ref{sec:model}).
+
+\begin{table}[h]
+\centering
+\caption{Datasets from the FII BCI MI corpus.}
+\label{tab:datasets}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Dataset & Subjects & Sessions & Domains & EEG sensors & Classes & Sampling rate (Hz) \\
+\midrule
+BNCI2014001        & 9  & 2 & 18  & 22  & 4 & 250  \\
+BNCI2015001        & 12 & 2 & 24  & 13  & 2 & 512  \\
+Cho2017            & 52 & 1 & 52  & 64  & 2 & 512  \\
+GrosseWentrup2009  & 10 & 1 & 10  & 128 & 2 & 500  \\
+Lee2019MI          & 54 & 2 & 108 & 62  & 2 & 1000 \\
+Schirrmeister2017  & 14 & 1 & 14  & 128 & 4 & 500  \\
+Weibo2014          & 10 & 1 & 10  & 60  & 7 & 200  \\
+Zhou2016           & 4  & 3 & 12  & 14  & 3 & 250  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Pre-processing}
+For each trial, a sample covariance matrix is computed from the EEG segment
+($N$ sensors $\times$ $T$ samples), giving an SPD matrix of size $N \times N$.
+Matrices are pre-conditioned per domain; for datasets with more than 64 sensors the
+dimension is reduced automatically (\texttt{precond\_explVar = 0}), so the network input
+size $n$ can be smaller than $N$. \todo{donner $n$ effectif par dataset ; bandes de
+fréquence, fenêtre temporelle ; nature exacte du pré-conditionnement.}
+
+\subsection{Splits}
+Each dataset is split in 5 folds with 70\,\% train, 15\,\% validation, 15\,\% test.
+Batches contain a single domain.
+
+%=====================================================================
+\section{Model and training}
+%=====================================================================
+\label{sec:model}
+
+All models share the same structure:
+\emph{domain-specific} SPD block ($L$ times BiMap $\rightarrow$ $\sigma$)
+$\rightarrow$ LogEig $\rightarrow$ vech $\rightarrow$ linear classifier.
+LogEig and the classifier are shared across domains. Within a model, the same activation is
+used in every layer. Only the activation, the depth $L$ and the dimensions change between
+experiments.
+\todo{figure du modèle.}
+
+\paragraph{Training.}
+Riemannian Adam (geoopt), learning rate $5\cdot10^{-3}$, batch size 32, at most 75
+epochs, early stopping on validation loss (patience 10, best model restored), gradient norm
+clipped at 1, cross-entropy loss. Identical for every activation and depth.
+
+\paragraph{Evaluation.}
+5 folds $\times$ 5 seeds $\Rightarrow$ $N = 25$ paired runs per (dataset, architecture,
+activation). Metric: balanced accuracy on the test fold. Statistics: permutation
+repeated-measures ANOVA, then paired post-hoc tests with family-wise error correction
+(PermutationTests.jl); a paired permutation $t$-test when only two activations are compared.
+
+%=====================================================================
+\section{Experimental plan}
+%=====================================================================
+\label{sec:plan}
+
+The study proceeds in four phases. Each phase runs the four activations of
+Table~\ref{tab:activations}, with the protocol of Section~\ref{sec:model}.
+
+\begin{table}[h]
+\centering
+\caption{Experimental phases. $n$: input dimension after pre-processing;
+$\varphi = (1+\sqrt5)/2$.}
+\label{tab:plan}
+\small
+\begin{tabular}{clp{4.2cm}p{3.2cm}l}
+\toprule
+Phase & Depth $L$ & Dimensions & Datasets & Question \\
+\midrule
+1 & 1 & $n \to \lfloor n/2 \rfloor$                         & all 8 & Q1 \\
+2 & 2 & $n \to \lfloor n/2 \rfloor \to \lfloor n/4 \rfloor$ & $n_2 \geq 9$: Cho, GW, Lee, Schi, Weibo & Q2 \\
+  & 3 & $n \to \dots \to \lfloor n/8 \rfloor$               & $n_3 \geq 9$: GW, Schi & Q2 \\
+3 & 1--5 & $n_\ell = \operatorname{round}(n_{\ell-1}/\varphi)$ while $\geq 9$ (Table~\ref{tab:golden}) & 7 (all but BNCI2015001) & Q2, Q3 \\
+4 & \todo{} & + normalisation setups & \todo{} & Q3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Phase 1 -- One layer}
+Minimal network: isolates the effect of a single non-linearity. Run on all datasets.
+
+\subsection{Phase 2 -- Two and three layers}
+Same halving rule, deeper. Tests whether the ranking of Phase~1 holds with depth.
+Halving quickly makes the last dimension small for low-density datasets
+(e.g.\ 13 sensors: $13 \to 6 \to 3 \to 1$), so a dataset is kept at depth $L$ only if the
+last layer keeps $n_L \geq n_{\min} = 9$ dimensions, i.e.\ $n \geq 36$ for $L=2$ and
+$n \geq 72$ for $L=3$.
+\todo{recalculer avec $n$ effectif après pré-conditionnement (128 capteurs).}
+
+\subsection{Phase 3 -- Golden-ratio division}
+Instead of halving, each BiMap divides the dimension by $\varphi \approx 1.618$:
+$n_\ell = \operatorname{round}(n_{\ell-1}/\varphi)$, and layers are added as long as
+$n_\ell \geq n_{\min} = 9$. The depth is therefore set by the input size
+(Table~\ref{tab:golden}). The slower reduction allows deeper networks without collapsing
+the dimension early, and every network ends at a comparable size ($9 \leq n_L < 15$).
+BNCI2015001 ($13/\varphi \approx 8$) admits no golden layer and is excluded.
+
+\begin{table}[h]
+\centering
+\caption{Golden-ratio architectures ($n$ = number of sensors; \todo{à recalculer si $n$ effectif $<$ capteurs}).}
+\label{tab:golden}
+\small
+\begin{tabular}{llc}
+\toprule
+Dataset & Dimensions & $L$ \\
+\midrule
+Zhou2016          & $14 \to 9$ & 1 \\
+BNCI2014001       & $22 \to 14 \to 9$ & 2 \\
+Weibo2014         & $60 \to 37 \to 23 \to 14 \to 9$ & 4 \\
+Lee2019MI         & $62 \to 38 \to 23 \to 14 \to 9$ & 4 \\
+Cho2017           & $64 \to 40 \to 25 \to 15 \to 9$ & 4 \\
+GrosseWentrup2009, Schirrmeister2017 & $128 \to 79 \to 49 \to 30 \to 19 \to 12$ & 5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Phase 4 -- Normalisation}
+\label{sec:phase4}
+Once the depth effect is known, normalisation setups are compared to control the spectral
+growth of element-wise activations.
+\todo{setups à définir plus tard (ex.\ ReEig final, normalisation par la trace).}
+
+%=====================================================================
+\section{Reproducibility and monitoring}
+%=====================================================================
+\label{sec:repro}
+
+Every run (dataset, fold, seed, architecture, activation) saves enough to be reproduced and
+to follow the parameters during training.
+
+\begin{table}[h]
+\centering
+\caption{Information saved for each run.}
+\label{tab:logging}
+\small
+\begin{tabular}{lp{11cm}}
+\toprule
+Group & Content \\
+\midrule
+Identification & dataset, fold file, seed, phase, activation, git commit, date, device, library versions \\
+Architecture   & depth $L$, dimensions $n_0,\dots,n_L$, division rule, normalisation setup, $\epsilon$, $K$ (ExpT) \\
+Training       & optimiser, learning rate, batch size, max epochs, patience, gradient clipping,
+                 $\alpha$ initialisation \\
+Per epoch      & train loss, validation loss, validation (balanced) accuracy;
+                 $\alpha$ of every layer and domain;
+                 per-layer spectral statistics (min / mean / max eigenvalue, trace) \\
+End of run     & stopping epoch, best validation loss, test balanced accuracy,
+                 final parameters (BiMap $W$, $\alpha$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\todo{format : un fichier de config (JSON/YAML) par expérience + un fichier par run.}
+
+%=====================================================================
+\section{Results}
+%=====================================================================
+\todo{Un tableau par phase avec p-values ; effet de la profondeur ; courbes de trace ;
+trajectoires de $\alpha$.}
+
+\section{Discussion}
+\todo{}
+
+\section{Conclusion}
+\todo{}
+
+\end{document}

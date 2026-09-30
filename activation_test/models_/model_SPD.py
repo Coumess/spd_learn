@@ -1,16 +1,39 @@
 
+import math
 import torch
 import torch.nn as nn
-from warnings import warn
-from spd_learn.functional import covariance
-from spd_learn.modules import BiMap, CovLayer, LogEig, SPDBatchNormMeanVar, ReEig
+from spd_learn.modules import BiMap, LogEig, ReEig
 
 from activation_test.activation.spectral import PowerEig, SpAEig, TanhEig
 from activation_test.activation.elementwise import activationSPD, coshP, coshPTraceNorm, polynomialActivation, sinhP, expT, expP
 
+
+GOLDEN = (1 + math.sqrt(5)) / 2
+
+
+def compute_dims(n_chans, division = "half", depth = 1, n_min = 9):
+    """ Dimensions [n_0, n_1, ..., n_L] of the SPD block.
+
+    division = "half"   : n_l = n_0 // 2**l, for l = 1..depth
+    division = "golden" : n_l = round(n_{l-1} / phi), as long as n_l >= n_min (depth is ignored)
+    """
+    if division == "half":
+        dims = [n_chans // 2**l for l in range(depth + 1)]
+    elif division == "golden":
+        dims = [n_chans]
+        while round(dims[-1] / GOLDEN) >= n_min:
+            dims.append(round(dims[-1] / GOLDEN))
+    else:
+        raise ValueError(f"Unknown division : {division}")
+
+    if len(dims) < 2 or dims[-1] < 1:
+        raise ValueError(f"No valid SPD block for n_chans={n_chans}, division={division}, depth={depth} : {dims}")
+    return dims
+
+
 class modelSPDNet(nn.Module): 
 
-    def __init__(self, activation ="reeig", subspacedim1 = None, subspacedim2 = None, subspacedim3 = None, subspacedim4 = None, threshold = 1e-4, n_chans = None, domains = None , upper = True,  n_outputs = None):
+    def __init__(self, activation = "reeig", division = "half", depth = 1, n_min = 9, threshold = 1e-4, n_chans = None, domains = None, upper = True, n_outputs = None):
         super().__init__()
         
         if n_chans is None : 
@@ -20,87 +43,27 @@ class modelSPDNet(nn.Module):
         
         self.activation_type = activation
         self.threshold = threshold
- 
-        # -------------------------------------
-        # Number of dimensions based on n_chans 
-        # -------------------------------------
-        if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
-        if subspacedim2 is None : subspacedim2 = int(n_chans * 0.25)
-        if subspacedim3 is None : subspacedim3 = int(n_chans * 0.125)
-        """
-        subspacedim1 = 62
-        subspacedim2 = 38
-        subspacedim3 = 23
-        subspacedim4 = 14
-        subspacedim5 = 9
-        
-        if n_chans < 20:
-            if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
-            #if subspacedim2 is None : subspacedim2 = 6
-
-        elif 1 <= n_chans < 35:
-            if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
-            #if subspacedim2 is None : subspacedim2 = 6
-
-        elif 35 <= n_chans < 80:
-            if subspacedim1 is None : subspacedim1 = int(n_chans * 0.5)
-            if subspacedim2 is None : subspacedim2 = int(subspacedim1 * 0.5)
-            #if subspacedim3 is None : subspacedim3 = 6
-
-        elif 80 <= n_chans < 130:
-            if subspacedim1 is None: subspacedim1 = int(n_chans * 0.5)
-            if subspacedim2 is None: subspacedim2 = int(subspacedim1 * 0.5)
-            #if subspacedim3 is None: subspacedim3 = int(subspacedim2 * 0.5)
-            #if subspacedim4 is None: subspacedim4 = 6
-
-        """
 
         # -------------------------------------
-        # domain dependent architecture
+        # Dimensions of the BiMap layers (saved with the results)
+        # -------------------------------------
+        self.dims = compute_dims(n_chans, division, depth, n_min)
+
+        # -------------------------------------
+        # domain dependent architecture : [BiMap -> activation] x L
         # -------------------------------------
         self.domains_block = nn.ModuleDict()                                   # Domain specific 
         for domain in domains : 
-            layers = {
-                #"batchnorm" : SPDBatchNormMeanVar(n_chans),                    # num_features = size of input matrices
-                #"activation1" : self._make_activation(n = n_chans),
-                "bimap1" : BiMap(n_chans, subspacedim1),
-                #"reeig1" : ReEig(self.threshold),
-                "activation1": self._make_activation(n = subspacedim1),
-                "bimap2" : BiMap(subspacedim1, subspacedim2),
-                # "reeig2" : ReEig(self.threshold),
-                "activation2": self._make_activation(n = subspacedim2),
-                "bimap3" : BiMap(subspacedim2, subspacedim3),
-                "activation3" : self._make_activation(n = subspacedim3),
-                "reeig2" : ReEig(self.threshold),
-                #"bimap4" : BiMap(subspacedim3, subspacedim4),
-                #"activation4" : self._make_activation(n = subspacedim4),
-                #"bimap5" : BiMap(subspacedim4, subspacedim5),
-                #"activation5" : self._make_activation(n = subspacedim5),
-            }
-            
-            last_dim = subspacedim5
-
-            """
-            # 3rd BiMap if defined
-            if subspacedim3 is not None:
-                layers["bimap3"] = BiMap(subspacedim2, subspacedim3)
-                layers["activation3"] = self._make_activation(n = subspacedim3)
-                #layers["reeig3"] = ReEig(self.threshold)
-                last_dim = subspacedim3
-
-            # 4th BiMap if defined
-            if subspacedim4 is not None:
-                layers["bimap4"] = BiMap(last_dim, subspacedim4)
-                #layers["activation4"] = self._make_activation()
-                layers["reeig4"] = ReEig(self.threshold)
-                last_dim = subspacedim4
-            """
+            layers = {}
+            for l in range(1, len(self.dims)):
+                layers[f"bimap{l}"] = BiMap(self.dims[l - 1], self.dims[l])
+                layers[f"activation{l}"] = self._make_activation(n = self.dims[l])
             self.domains_block[domain] = nn.ModuleDict(layers)
 
- 
         # -------------------------------------
         # Logeig and linear layer 
         # -------------------------------------
+        last_dim = self.dims[-1]
         self.logeig = LogEig(upper = upper)                                     # if Upper = True : vech                    
         self.len_last_layer = (
             last_dim * (last_dim + 1) // 2 if upper else last_dim**2

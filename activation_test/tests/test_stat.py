@@ -18,6 +18,9 @@ from spd_learn.modules import BiMap, ReEig, LogEig
 import os
 import random
 import copy
+import json
+import datetime
+import subprocess
 import tkinter as t
 from tkinter.filedialog import askdirectory, askopenfilename
 
@@ -61,9 +64,41 @@ def extract_learned_params(model):
                 entry["alpha"] = F.softplus(layer.alphaE).detach().cpu().numpy()
             if hasattr(layer, "w"):
                 entry["w"] = F.softplus(layer.w).detach().cpu().numpy()
+            if hasattr(layer, "K"):
+                entry["K"] = layer.K
             block_params[name] = entry
         params[domain] = block_params
     return params
+
+#-----------------------------------------------
+# Paramètres scalaires des activations (alpha, w) -> suivi à chaque époque
+#-----------------------------------------------
+def current_alphas(model):
+    out = {}
+    for domain, block in model.domains_block.items():
+        for name, layer in block.items():
+            for p in ("alpha", "alphaE", "w"):
+                if hasattr(layer, p):
+                    out.setdefault(domain, {})[name] = F.softplus(getattr(layer, p)).detach().cpu().numpy()
+    return out
+
+#-----------------------------------------------
+# CONFIG de l'expérience (tout est sauvegardé dans <out_name>_config.json)
+#-----------------------------------------------
+CONFIG = {
+    "activations": ["reeig", "cosh", "coshP", "expT"],
+    "division": "half",          # "half" | "golden"
+    "depth": 1,                  # nombre de couches si division = "half" (ignoré si "golden")
+    "n_min": 9,                  # dimension minimale de la dernière couche (golden)
+    "seeds": [1, 2, 3, 4, 5],
+    "batch_size": 32,
+    "max_epochs": 75,
+    "lr": 0.005,
+    "optimizer": "geoopt.optim.RiemannianAdam",
+    "patience": 10,
+    "grad_clip": 1.0,
+    "threshold": 1e-4,
+}
 
 #-----------------------------------------------
 # Path to the folds of a dataset
@@ -73,11 +108,24 @@ print("Path of selected folder : ", path)
 
 list_files = [ file for file in os.listdir(path) if file.endswith(".pkl")]
 
+dataset = os.path.basename(os.path.normpath(path))
+arch = "golden" if CONFIG["division"] == "golden" else f"half{CONFIG['depth']}"
+out_name = f"results_{dataset}_{arch}"                                              # préfixe de tous les fichiers de sortie
+
+try:
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+except OSError:
+    commit = None
+with open(f"{out_name}_config.json", "w") as fc:
+    json.dump({**CONFIG, "dataset": dataset, "data_path": path, "fold_files": list_files,
+               "git_commit": commit, "date": datetime.datetime.now().isoformat(),
+               "torch": torch.__version__, "geoopt": geoopt.__version__}, fc, indent=2)
+
 
 #-----------------------------------------------
-# Seed 
+# Seed
 #-----------------------------------------------
-seeds = [1,2,3,4,5]
+seeds = CONFIG["seeds"]
 res_seed = {}
 learned_params = {}
 for seed in seeds :
@@ -122,8 +170,8 @@ for seed in seeds :
         D_val = torch.tensor(D_val)
 
         # ---------- Dataloader & Dataset --------------
-        batch_size = 32
-    
+        batch_size = CONFIG["batch_size"]
+
         sampler_train = DomainBatchSampler(D_train, batch_size=batch_size, shuffle=True)      # Creates batches with unique domains 
         sampler_test = DomainBatchSampler(D_test, batch_size=batch_size, shuffle=False)
         sampler_val = DomainBatchSampler(D_val, batch_size=batch_size, shuffle=False)
@@ -134,45 +182,50 @@ for seed in seeds :
 
         res_couche = []
 
-        for layer in ["expT"]: # "reeig", , "expP"
+        for layer in CONFIG["activations"]:
             print(f"\n---> Entraînement avec l'activation : {layer}")
             set_seed(seed)
             n_chans = X_train.shape[1]
             n_outputs = len(torch.unique(Y_train))
-            
+
             #-----------------------
-            # Model 
+            # Model
             #-----------------------
             spdnet = modelSPDNet(
                 activation = layer,
+                division = CONFIG["division"],
+                depth = CONFIG["depth"],
+                n_min = CONFIG["n_min"],
                 n_chans = n_chans,
                 n_outputs = n_outputs,
-                threshold = 1e-4,
+                threshold = CONFIG["threshold"],
                 domains = domains
             )
+            print(f"Dimensions : {spdnet.dims}")
             plotter = LayerPlot()
             plotter.hooker(spdnet)
 
             #----------- Training configuration ------------
-            max_epochs = 75
-            learning_rate = 0.005
+            max_epochs = CONFIG["max_epochs"]
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
             spdnet.to(device)
 
             #----------- Loss and Optimization -------------
             criterion = nn.CrossEntropyLoss()
-            # optimizer = optim.Adam(spdnet.parameters(), lr = 0.003)
-            optimizer = geoopt.optim.RiemannianAdam(spdnet.parameters(), lr = 0.005)
+            optimizer = geoopt.optim.RiemannianAdam(spdnet.parameters(), lr = CONFIG["lr"])
 
             #-----------------------
             # Training the model
             #-----------------------
 
             best_loss = float("inf")
-            patience, wait = 10, 0
-            
-            for epoch in range(max_epochs) :                                
+            patience, wait = CONFIG["patience"], 0
+            stop_epoch, best_epoch = max_epochs, 0
+            best_model_state = copy.deepcopy(spdnet.state_dict())
+            history = [{"epoch": 0, "alpha": current_alphas(spdnet)}]              # epoch 0 = valeurs initiales
+
+            for epoch in range(max_epochs) :
                 #--------- TRAINING ----------
                 spdnet.train()                                              
                 train_loss = 0                                              #  To stock the loss 
@@ -190,11 +243,12 @@ for seed in seeds :
                     optimizer.zero_grad()
                     loss.backward()
 
-                    torch.nn.utils.clip_grad_norm_(spdnet.parameters(), 1)
+                    torch.nn.utils.clip_grad_norm_(spdnet.parameters(), CONFIG["grad_clip"])
                     optimizer.step()
                     train_loss += loss.item()
 
                 train_loss /= len(train_loader)
+                plotter.compute_epoch_stats()                               # stats spectrales des batchs d'entraînement de l'époque
 
                 #--------- VALIDATION ---------
                 spdnet.eval()
@@ -227,20 +281,33 @@ for seed in seeds :
                 predictions_val = torch.cat(all_val_preds)
                 Y_val_full = torch.cat(all_val_labels)
                 val_bal_acc = balanced_accuracy_score(Y_val_full.numpy(),predictions_val.numpy())
+                plotter.batch_stats.clear()                                 # on ne garde pas les stats des batchs de validation
                 print(f"Epoch {epoch+1}/{max_epochs} | Train loss : {train_loss:.3f} | Val loss : {val_loss:.3f} | Val accuracy : {val_accuracy:.3f}")
 
-                # EARLY STOPPING 
+                history.append({
+                    "epoch": epoch + 1,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "val_acc": val_accuracy,
+                    "val_bacc": val_bal_acc,
+                    "alpha": current_alphas(spdnet),
+                })
+
+                # EARLY STOPPING
                 if val_loss < best_loss:
                     best_loss = val_loss
+                    best_epoch = epoch + 1
                     wait = 0
                     best_model_state = copy.deepcopy(spdnet.state_dict())   # Save the best model properly
                 else:
                     wait += 1
                     if wait >= patience:
                         print("Early stopping!")
-                        spdnet.load_state_dict(best_model_state)
+                        stop_epoch = epoch + 1
                         break
-            print(">>> JE SUIS APRES LA BOUCLE")
+
+            spdnet.load_state_dict(best_model_state)                        # meilleur modèle, même sans early stopping
+            plotter.batch_stats.clear()                                     # pas de stats pendant le test
             #--------- TEST --------- 
             spdnet.eval()
             correct = 0
@@ -276,9 +343,15 @@ for seed in seeds :
             # Sauvegarde des paramètres appris pour ce (seed, fold, activation)
             learned_params.setdefault(seed, {}).setdefault(file, {})[layer] = {
                 "test_bacc": test_balanced_accuracy,
+                "dims": spdnet.dims,
+                "stop_epoch": stop_epoch,
+                "best_epoch": best_epoch,
+                "best_val_loss": best_loss,
+                "history": history,                                        # pertes + alpha à chaque époque
+                "spectral": {k: dict(v) for k, v in plotter.epochs_stats.items()},  # min/mean/max eig, cond, trace par couche et par époque
                 "params": extract_learned_params(spdnet),
             }
-            with open("results_schirrmeister_Expt_ReEig_3block.pkl", "wb") as fpk:
+            with open(f"{out_name}.pkl", "wb") as fpk:
                 pickle.dump(learned_params, fpk)
         res_fold[i] = res_couche
     res_seed[seed] = res_fold
@@ -294,13 +367,13 @@ for seed in res_seed:
 y = np.array(y)
 
 # Sauvegarder en CSV
-np.savetxt(r"results_schirrmeister_Expt_ReEig_3block.csv", y, delimiter=",", header="expT", comments="")
+np.savetxt(f"{out_name}.csv", y, delimiter=",", header=", ".join(CONFIG["activations"]), comments="")
 
 #-----------------------------------------------------------
 # Sauvegarde lisible des paramètres scalaires (alpha) + accuracy
 # (les matrices W complètes sont dans learned_params.pkl)
 #-----------------------------------------------------------
-with open("results_schirrmeister_Expt_ReEig_3block.txt", "w") as fsum:
+with open(f"{out_name}.txt", "w") as fsum:
     for s in learned_params:
         for fl in learned_params[s]:
             for act in learned_params[s][fl]:
@@ -312,4 +385,4 @@ with open("results_schirrmeister_Expt_ReEig_3block.txt", "w") as fsum:
                             fsum.write(f"    {dom} | {lname} ({e['type']}) : alpha={np.ravel(e['alpha'])}\n")
                 fsum.write("\n")
 
-print("Paramètres appris sauvegardés dans learned_params.pkl et learned_params_summary.txt")
+print(f"Résultats sauvegardés : {out_name}_config.json, {out_name}.csv, {out_name}.pkl, {out_name}.txt")
