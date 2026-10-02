@@ -12,7 +12,8 @@ GOLDEN = (1 + math.sqrt(5)) / 2
 
 
 def compute_dims(n_chans, division = "half", depth = 1, n_min = 9):
-    """ Dimensions [n_0, n_1, ..., n_L] of the SPD block.
+    """ 
+    Dimensions [n_0, n_1, ..., n_L] of the SPD block.
 
     division = "half"   : n_l = n_0 // 2**l, for l = 1..depth
     division = "golden" : n_l = round(n_{l-1} / phi), as long as n_l >= n_min (depth is ignored)
@@ -118,7 +119,8 @@ class modelSPDNet(nn.Module):
 
 
     def forward(self, X: torch.Tensor, domain) -> torch.Tensor:
-        """Forward pass of the SPDNet model.
+        """
+        Forward pass of the SPDNet model.
 
         Parameters
         ----------

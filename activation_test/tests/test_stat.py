@@ -16,6 +16,7 @@ from sklearn.metrics import balanced_accuracy_score
 from spd_learn.modules import BiMap, ReEig, LogEig
 
 import os
+import math
 import random
 import copy
 import json
@@ -116,7 +117,7 @@ try:
     commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
 except OSError:
     commit = None
-with open(f"{out_name}_config.json", "w") as fc:
+with open(f"{out_name}_config.json", "w", encoding="utf-8") as fc:
     json.dump({**CONFIG, "dataset": dataset, "data_path": path, "fold_files": list_files,
                "git_commit": commit, "date": datetime.datetime.now().isoformat(),
                "torch": torch.__version__, "geoopt": geoopt.__version__}, fc, indent=2)
@@ -225,41 +226,16 @@ for seed in seeds :
             best_model_state = copy.deepcopy(spdnet.state_dict())
             history = [{"epoch": 0, "alpha": current_alphas(spdnet)}]              # epoch 0 = valeurs initiales
 
-            for epoch in range(max_epochs) :
-                #--------- TRAINING ----------
-                spdnet.train()                                              
-                train_loss = 0                                              #  To stock the loss 
+            failure, phase, epoch = None, "train", -1
+            try:
+                for epoch in range(max_epochs) :
+                    #--------- TRAINING ----------
+                    phase = "train"
+                    spdnet.train()
+                    train_loss = 0                                              #  To stock the loss 
 
-                for x,y,d in train_loader :
-                    assert torch.all(d == d[0]), "Batch contains multiple domains!"
-                    x = x.to(device)
-                    y = y.to(device)
-                    d = d.to(device)
-
-                    domain_name = f"domain {d[0].item()}"
-                    pred = spdnet(x, domain_name)
-                    loss = criterion(pred, y)
-
-                    optimizer.zero_grad()
-                    loss.backward()
-
-                    torch.nn.utils.clip_grad_norm_(spdnet.parameters(), CONFIG["grad_clip"])
-                    optimizer.step()
-                    train_loss += loss.item()
-
-                train_loss /= len(train_loader)
-                plotter.compute_epoch_stats()                               # stats spectrales des batchs d'entraînement de l'époque
-
-                #--------- VALIDATION ---------
-                spdnet.eval()
-                correct = 0
-                total = 0
-                all_val_preds = []
-                all_val_labels = []
-                val_loss = 0
-
-                with torch.no_grad():
-                    for x,y,d in val_loader :
+                    for x,y,d in train_loader :
+                        assert torch.all(d == d[0]), "Batch contains multiple domains!"
                         x = x.to(device)
                         y = y.to(device)
                         d = d.to(device)
@@ -267,82 +243,128 @@ for seed in seeds :
                         domain_name = f"domain {d[0].item()}"
                         pred = spdnet(x, domain_name)
                         loss = criterion(pred, y)
-                        val_loss += loss.item()
+                        if not torch.isfinite(loss):
+                            raise FloatingPointError(f"perte d'entraînement non finie ({loss.item()}) sur {domain_name}")
 
-                        predictions = pred.argmax(dim=1)
-                        all_val_preds.append(predictions.cpu())
-                        all_val_labels.append(y.cpu())
-                        correct += (predictions == y).sum().item()
+                        optimizer.zero_grad()
+                        loss.backward()
+
+                        torch.nn.utils.clip_grad_norm_(spdnet.parameters(), CONFIG["grad_clip"])
+                        optimizer.step()
+                        train_loss += loss.item()
+
+                    train_loss /= len(train_loader)
+                    plotter.compute_epoch_stats()                               # stats spectrales des batchs d'entraînement de l'époque
+
+                    #--------- VALIDATION ---------
+                    phase = "val"
+                    spdnet.eval()
+                    correct = 0
+                    total = 0
+                    all_val_preds = []
+                    all_val_labels = []
+                    val_loss = 0
+
+                    with torch.no_grad():
+                        for x,y,d in val_loader :
+                            x = x.to(device)
+                            y = y.to(device)
+                            d = d.to(device)
+
+                            domain_name = f"domain {d[0].item()}"
+                            pred = spdnet(x, domain_name)
+                            loss = criterion(pred, y)
+                            val_loss += loss.item()
+
+                            predictions = pred.argmax(dim=1)
+                            all_val_preds.append(predictions.cpu())
+                            all_val_labels.append(y.cpu())
+                            correct += (predictions == y).sum().item()
+                            total += y.size(0)
+
+                    val_loss /= len(val_loader)
+                    if not math.isfinite(val_loss):
+                        raise FloatingPointError(f"perte de validation non finie ({val_loss})")
+                    val_accuracy = correct / total
+        
+                    predictions_val = torch.cat(all_val_preds)
+                    Y_val_full = torch.cat(all_val_labels)
+                    val_bal_acc = balanced_accuracy_score(Y_val_full.numpy(),predictions_val.numpy())
+                    plotter.batch_stats.clear()                                 # on ne garde pas les stats des batchs de validation
+                    print(f"Epoch {epoch+1}/{max_epochs} | Train loss : {train_loss:.3f} | Val loss : {val_loss:.3f} | Val accuracy : {val_accuracy:.3f}")
+
+                    history.append({
+                        "epoch": epoch + 1,
+                        "train_loss": train_loss,
+                        "val_loss": val_loss,
+                        "val_acc": val_accuracy,
+                        "val_bacc": val_bal_acc,
+                        "alpha": current_alphas(spdnet),
+                    })
+
+                    # EARLY STOPPING
+                    if val_loss < best_loss:
+                        best_loss = val_loss
+                        best_epoch = epoch + 1
+                        wait = 0
+                        best_model_state = copy.deepcopy(spdnet.state_dict())   # Save the best model properly
+                    else:
+                        wait += 1
+                        if wait >= patience:
+                            print("Early stopping!")
+                            stop_epoch = epoch + 1
+                            break
+
+                spdnet.load_state_dict(best_model_state)                        # meilleur modèle, même sans early stopping
+                plotter.batch_stats.clear()                                     # pas de stats pendant le test
+                #--------- TEST ---------
+                phase = "test"
+                spdnet.eval()
+                correct = 0
+                total = 0
+                all_pred = []
+                all_label = []
+
+                with torch.no_grad() :
+                    for x,y,d in test_loader : 
+                        x = x.to(device)
+                        y = y.to(device)
+                        d = d.to(device)
+
+                        domain_name = f"domain {d[0].item()}"
+                        pred_test = spdnet(x, domain_name)
+                        predictions_test = pred_test.argmax(dim=1)
+
+                        correct += (predictions_test == y).sum().item()
                         total += y.size(0)
 
-                val_loss /= len(val_loader)
-                val_accuracy = correct / total
-        
-                predictions_val = torch.cat(all_val_preds)
-                Y_val_full = torch.cat(all_val_labels)
-                val_bal_acc = balanced_accuracy_score(Y_val_full.numpy(),predictions_val.numpy())
-                plotter.batch_stats.clear()                                 # on ne garde pas les stats des batchs de validation
-                print(f"Epoch {epoch+1}/{max_epochs} | Train loss : {train_loss:.3f} | Val loss : {val_loss:.3f} | Val accuracy : {val_accuracy:.3f}")
+                        all_pred.append(predictions_test.cpu())
+                        all_label.append(y.cpu())
 
-                history.append({
-                    "epoch": epoch + 1,
-                    "train_loss": train_loss,
-                    "val_loss": val_loss,
-                    "val_acc": val_accuracy,
-                    "val_bacc": val_bal_acc,
-                    "alpha": current_alphas(spdnet),
-                })
+                predictions_test = torch.cat(all_pred)                                                # To concatenate tensors along a dimension 
+                Y_test_full = torch.cat(all_label)
 
-                # EARLY STOPPING
-                if val_loss < best_loss:
-                    best_loss = val_loss
-                    best_epoch = epoch + 1
-                    wait = 0
-                    best_model_state = copy.deepcopy(spdnet.state_dict())   # Save the best model properly
-                else:
-                    wait += 1
-                    if wait >= patience:
-                        print("Early stopping!")
-                        stop_epoch = epoch + 1
-                        break
-
-            spdnet.load_state_dict(best_model_state)                        # meilleur modèle, même sans early stopping
-            plotter.batch_stats.clear()                                     # pas de stats pendant le test
-            #--------- TEST --------- 
-            spdnet.eval()
-            correct = 0
-            total = 0
-            all_pred = []
-            all_label = []
-
-            with torch.no_grad() :
-                for x,y,d in test_loader : 
-                    x = x.to(device)
-                    y = y.to(device)
-                    d = d.to(device)
-
-                    domain_name = f"domain {d[0].item()}"
-                    pred_test = spdnet(x, domain_name)
-                    predictions_test = pred_test.argmax(dim=1)
-
-                    correct += (predictions_test == y).sum().item()
-                    total += y.size(0)
-
-                    all_pred.append(predictions_test.cpu())
-                    all_label.append(y.cpu())
-
-            predictions_test = torch.cat(all_pred)                                                # To concatenate tensors along a dimension 
-            Y_test_full = torch.cat(all_label)
-
-            # Balanced_accuracy on the test
-            test_balanced_accuracy = balanced_accuracy_score(Y_test_full.numpy(),predictions_test.numpy())
-            print(f"\nTest Balanced Accuracy {test_balanced_accuracy:.4f}")
+                # Balanced_accuracy on the test
+                test_balanced_accuracy = balanced_accuracy_score(Y_test_full.numpy(),predictions_test.numpy())
+                print(f"\nTest Balanced Accuracy {test_balanced_accuracy:.4f}")
+            except (torch.linalg.LinAlgError, FloatingPointError) as e:
+                # Échec numérique (eigh qui ne converge pas, perte NaN/inf...) : on l'enregistre et on continue
+                failure = {
+                    "error": type(e).__name__,
+                    "message": str(e),
+                    "epoch": epoch + 1,                                  # époque où ça a cassé
+                    "phase": phase,                                      # train / val / test
+                    "spectral_last_batches": {k: dict(v) for k, v in plotter.batch_stats.items()},  # stats par couche juste avant l'échec
+                }
+                test_balanced_accuracy = float("nan")
+                print(f"\n[ÉCHEC] {layer} | époque {epoch + 1} ({phase}) | {type(e).__name__} : {e}")
 
             res_couche.append(test_balanced_accuracy)
 
             # Sauvegarde des paramètres appris pour ce (seed, fold, activation)
             learned_params.setdefault(seed, {}).setdefault(file, {})[layer] = {
-                "test_bacc": test_balanced_accuracy,
+                "test_bacc": test_balanced_accuracy,                       # NaN si le run a échoué
+                "failure": failure,                                        # None si tout s'est bien passé
                 "dims": spdnet.dims,
                 "stop_epoch": stop_epoch,
                 "best_epoch": best_epoch,
@@ -373,12 +395,15 @@ np.savetxt(f"{out_name}.csv", y, delimiter=",", header=", ".join(CONFIG["activat
 # Sauvegarde lisible des paramètres scalaires (alpha) + accuracy
 # (les matrices W complètes sont dans learned_params.pkl)
 #-----------------------------------------------------------
-with open(f"{out_name}.txt", "w") as fsum:
+with open(f"{out_name}.txt", "w", encoding="utf-8") as fsum:
     for s in learned_params:
         for fl in learned_params[s]:
             for act in learned_params[s][fl]:
                 rec = learned_params[s][fl][act]
                 fsum.write(f"seed={s} | fold={fl} | activation={act} | test_bacc={rec['test_bacc']:.4f}\n")
+                if rec["failure"]:
+                    fl_ = rec["failure"]
+                    fsum.write(f"    ECHEC époque {fl_['epoch']} ({fl_['phase']}) : {fl_['error']} - {fl_['message']}\n")
                 for dom, block in rec["params"].items():
                     for lname, e in block.items():
                         if "alpha" in e:

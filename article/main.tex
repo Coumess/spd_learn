@@ -79,7 +79,7 @@ CoshP, and ExpT, a truncated parametric exponential. We ask:
 
 \paragraph{Contributions.}
 \todo{à formuler une fois les stats faites} (i) learnable element-wise activations with
-custom backward; (ii) a controlled comparison across 8 motor-imagery datasets and several
+custom backward; (ii) a controlled comparison across 7 motor-imagery datasets and several
 depths; (iii) an analysis of spectral growth and of the learned parameters across layers.
 
 %=====================================================================
@@ -182,38 +182,55 @@ Custom backward passes are checked against autograd
 \label{sec:data}
 
 \subsection{Datasets}
-Eight motor-imagery datasets from the FII BCI MI corpus are used
-(Table~\ref{tab:datasets}). A \emph{domain} is a subject--session pair; each domain has its
-own SPD block (Section~\ref{sec:model}).
+Motor-imagery datasets from the FII BCI MI corpus are used (Table~\ref{tab:datasets}).
+All experiments use the same binary task, \emph{left hand} vs \emph{right hand} motor
+imagery: only datasets containing both classes, with more than 24 trials per class, are
+selected, and only these two classes are kept. Every problem is therefore a two-class
+problem, with a chance level of 50\,\% balanced accuracy.
+A \emph{domain} is a subject--session pair; each domain has its own SPD block
+(Section~\ref{sec:model}).
 
 \begin{table}[h]
 \centering
-\caption{Datasets from the FII BCI MI corpus.}
+\caption{Datasets from the FII BCI MI corpus. $N$: number of EEG sensors;
+$n$: network input dimension after pre-conditioning (Section~\ref{sec:preproc}).
+All datasets are used for the left hand vs right hand task (2 classes).}
 \label{tab:datasets}
 \small
 \begin{tabular}{lcccccc}
 \toprule
-Dataset & Subjects & Sessions & Domains & EEG sensors & Classes & Sampling rate (Hz) \\
+Dataset & Subjects & Sessions & Domains & $N$ & $n$ & Sampling rate (Hz) \\
 \midrule
-BNCI2014001        & 9  & 2 & 18  & 22  & 4 & 250  \\
-BNCI2015001        & 12 & 2 & 24  & 13  & 2 & 512  \\
-Cho2017            & 52 & 1 & 52  & 64  & 2 & 512  \\
-GrosseWentrup2009  & 10 & 1 & 10  & 128 & 2 & 500  \\
-Lee2019MI          & 54 & 2 & 108 & 62  & 2 & 1000 \\
-Schirrmeister2017  & 14 & 1 & 14  & 128 & 4 & 500  \\
-Weibo2014          & 10 & 1 & 10  & 60  & 7 & 200  \\
-Zhou2016           & 4  & 3 & 12  & 14  & 3 & 250  \\
+BNCI2014001        & 9  & 2 & 18  & 22  & 22  & 250  \\
+Cho2017            & 52 & 1 & 52  & 64  & 64  & 512  \\
+GrosseWentrup2009  & 10 & 1 & 10  & 128 & 101 & 500  \\
+Lee2019MI          & 54 & 2 & 108 & 62  & 62  & 1000 \\
+Schirrmeister2017  & 14 & 1 & 14  & 128 & 101 & 500  \\
+Weibo2014          & 10 & 1 & 10  & 60  & 60  & 200  \\
+Zhou2016           & 4  & 3 & 12  & 14  & 14  & 250  \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+BNCI2015001 (right hand vs feet) does not contain the left-hand class and is therefore not
+used. BNCI2014004 is excluded because of its very low number of sensors ($N = 3$).
+\todo{confirmer $n$ = 101 sur les folds de GrosseWentrup et Schirrmeister ; vérifier le nombre de domaines retenus par dataset.}
+
 \subsection{Pre-processing}
-For each trial, a sample covariance matrix is computed from the EEG segment
-($N$ sensors $\times$ $T$ samples), giving an SPD matrix of size $N \times N$.
-Matrices are pre-conditioned per domain; for datasets with more than 64 sensors the
-dimension is reduced automatically (\texttt{precond\_explVar = 0}), so the network input
-size $n$ can be smaller than $N$. \todo{donner $n$ effectif par dataset ; bandes de
-fréquence, fenêtre temporelle ; nature exacte du pré-conditionnement.}
+\label{sec:preproc}
+Each trial is band-pass filtered between 8 and 32\,Hz (mu and beta rhythms) and encoded by
+its sample covariance matrix ($N$ sensors $\times$ $T$ samples), giving an SPD matrix of
+size $N \times N$.
+Matrices are then pre-conditioned per domain (PosDefManifoldML): Tikhonov regularisation
+($C + 10^{-8} I$), recentering, and equalisation. The recentering step also reduces the
+dimension of datasets with many sensors: it keeps
+\begin{equation}
+  n = \begin{cases} N & N \leq 64 \\[1mm]
+  \operatorname{round}\!\left(64 + 32\,\dfrac{\pi}{e}\,\log_2 \dfrac{N}{64}\right) & N > 64
+  \end{cases}
+\end{equation}
+dimensions, i.e.\ $n = 101$ for the 128-sensor datasets.
+\todo{fenêtre temporelle par dataset.}
 
 \subsection{Splits}
 Each dataset is split in 5 folds with 70\,\% train, 15\,\% validation, 15\,\% test.
@@ -232,14 +249,23 @@ used in every layer. Only the activation, the depth $L$ and the dimensions chang
 experiments.
 \todo{figure du modèle.}
 
+\paragraph{Orthogonality of BiMap weights.}
+The BiMap weights are kept on the Stiefel manifold by an orthogonal parametrisation
+($W$ is computed from an unconstrained matrix through Householder reflections), so that
+$W^\top W = I$ holds exactly at every step. This guarantees that $W^\top X W$ is SPD and,
+by Cauchy's interlacing theorem, that its eigenvalues stay within
+$[\lambda_{\min}(X), \lambda_{\max}(X)]$: BiMap layers cannot increase the trace or the
+condition number, and any spectral growth across layers comes from the activations.
+
 \paragraph{Training.}
 Riemannian Adam (geoopt), learning rate $5\cdot10^{-3}$, batch size 32, at most 75
 epochs, early stopping on validation loss (patience 10, best model restored), gradient norm
 clipped at 1, cross-entropy loss. Identical for every activation and depth.
+Since the BiMap weights are parametrised, the optimiser acts on them as standard Adam.
 
 \paragraph{Evaluation.}
 5 folds $\times$ 5 seeds $\Rightarrow$ $N = 25$ paired runs per (dataset, architecture,
-activation). Metric: balanced accuracy on the test fold. Statistics: permutation
+activation). Metric: balanced accuracy on the test fold (chance level 50\,\%). Statistics: permutation
 repeated-measures ANOVA, then paired post-hoc tests with family-wise error correction
 (PermutationTests.jl); a paired permutation $t$-test when only two activations are compared.
 
@@ -261,10 +287,10 @@ $\varphi = (1+\sqrt5)/2$.}
 \toprule
 Phase & Depth $L$ & Dimensions & Datasets & Question \\
 \midrule
-1 & 1 & $n \to \lfloor n/2 \rfloor$                         & all 8 & Q1 \\
+1 & 1 & $n \to \lfloor n/2 \rfloor$                         & all 7 & Q1 \\
 2 & 2 & $n \to \lfloor n/2 \rfloor \to \lfloor n/4 \rfloor$ & $n_2 \geq 9$: Cho, GW, Lee, Schi, Weibo & Q2 \\
   & 3 & $n \to \dots \to \lfloor n/8 \rfloor$               & $n_3 \geq 9$: GW, Schi & Q2 \\
-3 & 1--5 & $n_\ell = \operatorname{round}(n_{\ell-1}/\varphi)$ while $\geq 9$ (Table~\ref{tab:golden}) & 7 (all but BNCI2015001) & Q2, Q3 \\
+3 & 1--5 & $n_\ell = \operatorname{round}(n_{\ell-1}/\varphi)$ while $\geq 9$ (Table~\ref{tab:golden}) & all 7 & Q2, Q3 \\
 4 & \todo{} & + normalisation setups & \todo{} & Q3 \\
 \bottomrule
 \end{tabular}
@@ -276,10 +302,10 @@ Minimal network: isolates the effect of a single non-linearity. Run on all datas
 \subsection{Phase 2 -- Two and three layers}
 Same halving rule, deeper. Tests whether the ranking of Phase~1 holds with depth.
 Halving quickly makes the last dimension small for low-density datasets
-(e.g.\ 13 sensors: $13 \to 6 \to 3 \to 1$), so a dataset is kept at depth $L$ only if the
+(e.g.\ 14 sensors: $14 \to 7 \to 3$), so a dataset is kept at depth $L$ only if the
 last layer keeps $n_L \geq n_{\min} = 9$ dimensions, i.e.\ $n \geq 36$ for $L=2$ and
-$n \geq 72$ for $L=3$.
-\todo{recalculer avec $n$ effectif après pré-conditionnement (128 capteurs).}
+$n \geq 72$ for $L=3$: five datasets at $L = 2$ (e.g.\ $64 \to 32 \to 16$,
+$101 \to 50 \to 25$) and the two 128-sensor datasets at $L = 3$ ($101 \to 50 \to 25 \to 12$).
 
 \subsection{Phase 3 -- Golden-ratio division}
 Instead of halving, each BiMap divides the dimension by $\varphi \approx 1.618$:
@@ -287,11 +313,10 @@ $n_\ell = \operatorname{round}(n_{\ell-1}/\varphi)$, and layers are added as lon
 $n_\ell \geq n_{\min} = 9$. The depth is therefore set by the input size
 (Table~\ref{tab:golden}). The slower reduction allows deeper networks without collapsing
 the dimension early, and every network ends at a comparable size ($9 \leq n_L < 15$).
-BNCI2015001 ($13/\varphi \approx 8$) admits no golden layer and is excluded.
 
 \begin{table}[h]
 \centering
-\caption{Golden-ratio architectures ($n$ = number of sensors; \todo{à recalculer si $n$ effectif $<$ capteurs}).}
+\caption{Golden-ratio architectures ($n$: input dimension after pre-conditioning, Table~\ref{tab:datasets}).}
 \label{tab:golden}
 \small
 \begin{tabular}{llc}
@@ -303,7 +328,7 @@ BNCI2014001       & $22 \to 14 \to 9$ & 2 \\
 Weibo2014         & $60 \to 37 \to 23 \to 14 \to 9$ & 4 \\
 Lee2019MI         & $62 \to 38 \to 23 \to 14 \to 9$ & 4 \\
 Cho2017           & $64 \to 40 \to 25 \to 15 \to 9$ & 4 \\
-GrosseWentrup2009, Schirrmeister2017 & $128 \to 79 \to 49 \to 30 \to 19 \to 12$ & 5 \\
+GrosseWentrup2009, Schirrmeister2017 & $101 \to 62 \to 38 \to 23 \to 14 \to 9$ & 5 \\
 \bottomrule
 \end{tabular}
 \end{table}
