@@ -8,20 +8,27 @@ using Random
 using Statistics
 using Printf
 
-# Colonnes des CSV (ordre des activations dans test_stat.py)
-labels = ["ReEig", "ExpT", "ExpP", "Cosh"]
-
 # Formatage p-value façon papier (digits=3). Comme p >= minp, on ne peut
 # écrire "p<0.001" que si le test peut réellement descendre sous 0.001.
 fmt_p(p) = p < 0.001 ? "p<0.001" : @sprintf("p=%.3f", p)
 
 #%%
-# Charger le fichier des résultats (un seul dataset)
-file = "results_4activations_Zhou2016.csv"
-y = readdlm(file , ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
+# Charger le fichier des résultats produit par test_stat.py (un seul dataset) -- À CHANGER
+file = "results_BNCI2014001_half1.csv"
+y, header = readdlm(file, ',', header=true)             # header = 1re ligne : noms des activations
+labels = String.(strip.(vec(header)))                    # ex. ["reeig", "cosh", "coshP", "expT"]
+y = map(v -> v isa Number ? Float64(v) : NaN, y)         # "nan" (run en échec) -> NaN
 
 # Nom de la database
 println("Resultats utilisés : ", file)
+
+# Activations en échec (NaN) : on les signale puis on les retire des tests
+failed = [k for k in 1:size(y, 2) if any(isnan, y[:, k])]
+for k in failed
+    @printf("ECHEC : %s a échoué sur %d/%d runs -> retirée des tests\n", labels[k], count(isnan, y[:, k]), size(y, 1))
+end
+keep = setdiff(1:size(y, 2), failed)
+y, labels = y[:, keep], labels[keep]
 
 # Vérificatione la taille de y (doit être (folds*seeds) x nbr de couches)
 println("Taille de y : ", size(y))
@@ -55,6 +62,7 @@ end
 #---------------------------------------
 N_rows = size(y, 1)
 K_cols = size(y,2)
+K_cols < 3 && error("Seulement $K_cols activation(s) valide(s) : utiliser jul_stats.jl (t apparié) pour 2 activations")
 res = anovaTestRM(y_vec, (n=N_rows, k=K_cols))
 println("\n=== RESULTAT ANOVA (omnibus, repeated-measures) ===")
 println(res)

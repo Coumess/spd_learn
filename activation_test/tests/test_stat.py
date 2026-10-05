@@ -1,12 +1,13 @@
 import sys
-# sys.path.insert(0, r"C:\Users\andrieue\Desktop\PythonPackages")
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn")
-import spd_learn 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))   # racine du repo, où qu'il soit
+sys.path.insert(0, REPO_ROOT)
+import spd_learn
 import geoopt
 import pickle 
 import numpy as np
@@ -25,8 +26,6 @@ import subprocess
 import tkinter as t
 from tkinter.filedialog import askdirectory, askopenfilename
 
-sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test/utils")
-sys.path.insert(0, r"C:/Users/coumesa/Documents/BCI/spd_learn/activation_test/models_")
 
 from preprocessing.data_scripts.get_eeg_data  import DomainBatchSampler 
 from activation_test.models_.model_SPD import modelSPDNet
@@ -109,17 +108,26 @@ print("Path of selected folder : ", path)
 
 list_files = [ file for file in os.listdir(path) if file.endswith(".pkl")]
 
-dataset = os.path.basename(os.path.normpath(path))
+dataset = os.path.basename(os.path.normpath(path))                                  # par défaut : nom du dossier
+meta = os.path.join(path, "metadata.yaml")                                          # dossier prétraité (nom = hash) : vrai nom dans metadata.yaml
+if os.path.exists(meta):
+    with open(meta, encoding="utf-8") as fm:
+        for line in fm:
+            if line.strip().startswith("db_prefix:"):
+                dataset = line.split(":", 1)[1].strip().strip("'\"")
+                break
 arch = "golden" if CONFIG["division"] == "golden" else f"half{CONFIG['depth']}"
 out_name = f"results_{dataset}_{arch}"                                              # préfixe de tous les fichiers de sortie
 
 try:
-    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    git = lambda *a: subprocess.run(["git", *a], cwd=REPO_ROOT, capture_output=True, text=True).stdout.strip()
+    commit = git("rev-parse", "HEAD")
+    uncommitted = git("diff", "HEAD", "--name-only").split()                         # fichiers modifiés non commités
 except OSError:
-    commit = None
+    commit, uncommitted = None, None
 with open(f"{out_name}_config.json", "w", encoding="utf-8") as fc:
     json.dump({**CONFIG, "dataset": dataset, "data_path": path, "fold_files": list_files,
-               "git_commit": commit, "date": datetime.datetime.now().isoformat(),
+               "git_commit": commit, "uncommitted_changes": uncommitted, "date": datetime.datetime.now().isoformat(),
                "torch": torch.__version__, "geoopt": geoopt.__version__}, fc, indent=2)
 
 

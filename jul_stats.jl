@@ -9,19 +9,23 @@ using Statistics
 using Printf
 
 
-# Colonnes du CSV (ordre des activations dans test_stat.py)
-labels = ["ReEig", "CoshPnorm"]
-
-
 # Formatage p-value façon papier (digits=3). Comme p >= minp, on ne peut
 # écrire "p<0.001" que si le test peut réellement descendre sous 0.001.
 fmt_p(p) = p < 0.001 ? "p<0.001" : @sprintf("p=%.3f", p)
 
 
 #%%
-# Charger le fichier des résultats (un seul dataset)
-file = "results_4activations_Zhou20168_3_coshPnorm.csv"
-y = readdlm(file , ',', skipstart=1)                    # skipstart=1 signifie qu'on enlève l'entête
+# Charger le fichier des résultats produit par test_stat.py (un seul dataset) -- À CHANGER
+file = "results_BNCI2014001_half1.csv"
+pick = ["reeig", "expT"]                                 # les 2 activations à comparer (noms de l'en-tête du CSV)
+
+y, header = readdlm(file, ',', header=true)             # header = 1re ligne : noms des activations
+names_csv = String.(strip.(vec(header)))
+y = map(v -> v isa Number ? Float64(v) : NaN, y)         # "nan" (run en échec) -> NaN
+idx = [findfirst(==(p), names_csv) for p in pick]
+any(isnothing, idx) && error("Activation absente du CSV. Colonnes disponibles : $names_csv")
+y, labels = y[:, idx], pick
+any(isnan, y) && error("Des runs en échec (NaN) : comparer seulement des activations sans échec")
 
 
 # Nom de la database
@@ -39,7 +43,7 @@ K = size(y, 2)                                             # nombre de couches (
 
 
 if K != 2
-    error("Ce script est pour K=2 (ReEig vs CoshPnorm). Ici K=$K -> utilise test_stat_ju.jl")
+    error("Ce script est pour K=2. Ici K=$K -> utilise test_stat_ju.jl")
 end
 
 
@@ -73,7 +77,7 @@ res = studentTest1S(d; switch2rand=1, nperm=20000)
 
 println("\n=== TEST APPARIE (paired Student t, permutation) ===")
 println(res)
-@printf("t = %+.3f | %s | minp = %.2e | nperm = %d\n", res.obsstat, fmt_p(res.p), res.minp, res.nperm)
+@printf("statistique (%s) = %+.3f | %s | minp = %.2e | nperm = %d\n", res.stat, res.obsstat, fmt_p(res.p), res.minp, res.nperm)
 @printf("difference moyenne (%s - %s) = %+.3f\n", labels[1], labels[2], mean(d))
 
 
